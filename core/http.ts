@@ -147,5 +147,7 @@ async function handleScreens(core: Core, req: IncomingMessage, res: ServerRespon
   const a = core.registry.apps.get(appId);
   const caller = await callerFromRequest(core, req);
   if (!a?.manifest.screens || !caller?.team || !(await core.registry.isOn(caller.team.id, appId))) return json(res, 404, { error: { code: 'off', message: 'That app is off.' } });
-  serveFile(res, path.join(a.dir, a.manifest.screens), 'no-cache');
+  const file = path.join(a.dir, a.manifest.screens);
+  if (!fs.existsSync(file)) { core.log.error(`${appId}: screens file missing at ${file}`); return json(res, 500, { error: { code: 'missing', message: `${a.manifest.name} is installed without its screens file.` } }); }
+  serveFile(res, file, 'no-cache');
 }

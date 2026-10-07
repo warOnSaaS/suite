@@ -1,7 +1,7 @@
 node_modules
 .data
 .shots
-dist
+/dist
 vendor/*/node_modules
 *.names
 .env
