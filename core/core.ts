@@ -1,4 +1,5 @@
 // The suite core: one object that holds the database and every shared service, built once per server.
+import fs from 'node:fs';
 import path from 'node:path';
 import { openDb, defaultDataDir, type Database } from './db.ts';
 import { migrate } from './migrate.ts';
@@ -16,7 +17,14 @@ import { appTools } from './apps.ts';
 import { hostingTools, auditTools, eventTools } from './hosting.ts';
 
 export const CORE_VERSION = '0.1.0';
-export const ROOT = path.resolve(new URL('..', import.meta.url).pathname);
+// The repo root: the nearest folder above this file that has apps-builtin (works from source and from dist/server).
+export const ROOT = (() => {
+  let d = path.dirname(new URL(import.meta.url).pathname);
+  for (let i = 0; i < 6; i++, d = path.dirname(d)) if (fs.existsSync(path.join(d, 'apps-builtin'))) return d;
+  return process.cwd();
+})();
+/** Running the bundled server (npm run build): app server parts come from dist/server/apps/<id>.mjs. */
+export const FROM_DIST = new URL(import.meta.url).pathname.includes('/dist/server/');
 
 export interface CoreOptions { env?: NodeJS.ProcessEnv; dataDir?: string; quiet?: boolean }
 

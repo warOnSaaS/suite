@@ -1,0 +1,10 @@
+/* ui-design · without script
+   Linked inside <noscript>, so it only applies when script is off. The agent cannot play answers,
+   so the library of every answer shows under the opening screen, the featured questions jump to
+   their answer, and the parts that need script step aside. */
+.ui-library:not(.is-visible){position:static!important;width:min(var(--ui-width,820px),100% - 32px)!important;height:auto!important;margin:24px auto 80px!important;padding:0!important;overflow:visible!important;clip:auto!important;clip-path:none!important}
+.ui-composer,.ui-back,.ui-menu,.ui-topics{display:none!important}
+.ui-app,.ui-app.is-home{height:auto;min-height:0}
+.ui-library details{scroll-margin-top:16px}
+.ui-library details:target{background:var(--ui-accent-wash);border-radius:var(--ui-radius-sm);padding-left:12px;padding-right:12px}
+.ui-library details:target::details-content{content-visibility:visible;block-size:auto}

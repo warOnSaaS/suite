@@ -1,0 +1,22 @@
+/* ui-design · theme: ops
+   Monochrome, square, monospace. State is said in words and shown in weight, never in colour.
+   The default, and the warOnSaaS look.
+   The first theme file, kept so pages that link it keep their look. New pages set options on
+   <html> instead (src/tokens.css): data-scheme="ops" and the rest. */
+@font-face{font-family:"Geist Mono";src:url(../fonts/geist-mono.woff2) format("woff2");font-weight:400 700;font-display:swap}
+@font-face{font-family:"JetBrains Mono";src:url(../fonts/jetbrains-mono.woff2) format("woff2");font-weight:400 700;font-display:swap}
+:root{
+  --ui-bg:#0b0b0b;--ui-surface:#101010;--ui-surface-2:#141414;--ui-chip:transparent;
+  --ui-ink:#ededed;--ui-ink-2:#a3a3a3;--ui-ink-3:#6b6b6b;
+  --ui-line:rgba(255,255,255,.10);--ui-line-2:rgba(255,255,255,.18);
+  --ui-accent:#ededed;--ui-accent-line:rgba(255,255,255,.45);--ui-accent-wash:rgba(255,255,255,.04);--ui-ask-ink:#ededed;
+  --ui-good:#ededed;--ui-warn:#9a9a9a;--ui-bad:#5a5a5a;
+  --ui-tag-bg:transparent;--ui-tag-ink:#ededed;
+  --ui-scrim:rgba(0,0,0,.75);
+  --ui-font:"JetBrains Mono",ui-monospace,monospace;--ui-mono:"JetBrains Mono",ui-monospace,monospace;--ui-display:"Geist Mono",ui-monospace,monospace;--ui-numeric:"Geist Mono",ui-monospace,monospace;
+  --ui-display-weight:700;--ui-display-track:-.03em;--ui-label-case:uppercase;--ui-label-track:.06em;--ui-size:14.5px;
+  --ui-radius:0;--ui-radius-lg:0;--ui-radius-sm:0;--ui-radius-xs:0;--ui-radius-pill:0;
+  --ui-avatar:none;
+}
+.ui-tag{border:1px solid var(--ui-line-2)}
+.ui-step i{border-radius:0}

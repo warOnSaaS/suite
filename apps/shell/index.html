@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en" data-scheme="neutral" data-mode="auto" data-type="grotesk" data-shape="soft" data-density="comfortable" data-surface="bordered" data-motion="subtle">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>wOS</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#161616" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="icon" href="/icon.svg">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="preload" href="/ui/fonts/geist.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/ui/src/ui.css">
+<link rel="stylesheet" href="/ui/src/tokens.css">
+<script>try{const l=JSON.parse(localStorage.getItem('wos-look')||'null');if(l){document.documentElement.dataset.scheme=l.scheme;document.documentElement.dataset.mode=l.mode}}catch{}</script>
+</head>
+<body>
+<div id="root"></div>
+<script type="module" src="/src/main.tsx"></script>
+</body>
+</html>

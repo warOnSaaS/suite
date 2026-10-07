@@ -1,0 +1,14 @@
+/* The few pages the server draws (sign-in, consent, email answers). Kit tokens only. */
+html,body{background:var(--ui-bg)}
+.wos-gate{min-height:100svh;display:grid;place-items:center;padding:24px 16px}
+.wos-gate-card{width:min(420px,100%);display:grid;gap:14px}
+.wos-gate-card h1{font-family:var(--ui-display);font-weight:var(--ui-display-weight);letter-spacing:var(--ui-display-track);font-size:26px;line-height:1.15;margin:8px 0 0}
+.wos-gate-card p{margin:0}
+.wos-gate-sub{color:var(--ui-ink-2);line-height:1.55}
+.wos-mark{font-family:"Geist Mono",ui-monospace,monospace;font-weight:700;font-size:20px;letter-spacing:-.04em;text-decoration:none;color:var(--ui-ink)}
+.wos-gate-form{display:grid;gap:10px;margin-top:10px;padding-top:16px;border-top:1px solid var(--ui-line)}
+.wos-gate-form .ui-field{margin:0}
+.wos-center{text-align:center}
+.wos-scopes{border:0;padding:0;margin:0;display:grid;gap:4px}
+.wos-scopes legend{margin-bottom:6px}
+form{display:grid;gap:10px}

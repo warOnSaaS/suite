@@ -1,0 +1,22 @@
+/* ui-design · theme: midnight
+   Near-black with a cool glow, rounded, a grotesk for words and a pixel mono for numbers.
+   The first theme file, kept so pages that link it keep their look. New pages set options on
+   <html> instead (src/tokens.css): data-scheme="midnight" and the rest. */
+@font-face{font-family:Geist;src:url(../fonts/geist.woff2) format("woff2");font-weight:300 700;font-display:swap}
+@font-face{font-family:"Geist Mono";src:url(../fonts/geist-mono.woff2) format("woff2");font-weight:400 700;font-display:swap}
+@font-face{font-family:"Departure Mono";src:url(../fonts/departure-mono.woff2) format("woff2");font-display:swap}
+:root{
+  --ui-bg:#09090b;--ui-surface:#111113;--ui-surface-2:#17171a;--ui-chip:rgba(255,255,255,.03);
+  --ui-ink:#fafafa;--ui-ink-2:#a1a1aa;--ui-ink-3:#71717a;
+  --ui-line:rgba(255,255,255,.08);--ui-line-2:rgba(255,255,255,.13);
+  --ui-accent:#7dd3fc;--ui-accent-line:rgba(125,211,252,.45);--ui-accent-wash:rgba(125,211,252,.07);--ui-ask-ink:#cfe9fb;
+  --ui-good:#22c55e;--ui-warn:#f59e0b;--ui-bad:#ef4444;
+  --ui-tag-bg:rgba(34,197,94,.1);--ui-tag-ink:#86efac;
+  --ui-scrim:rgba(5,5,7,.6);
+  --ui-font:Geist,ui-sans-serif,system-ui,sans-serif;--ui-mono:"Geist Mono",ui-monospace,monospace;--ui-display:Geist,ui-sans-serif,system-ui,sans-serif;--ui-numeric:"Departure Mono","Geist Mono",monospace;
+  --ui-display-weight:600;--ui-display-track:-.045em;
+  --ui-radius:14px;--ui-radius-lg:18px;--ui-radius-sm:10px;--ui-radius-xs:6px;--ui-radius-pill:999px;
+  --ui-avatar:none;
+}
+body{background:radial-gradient(760px 460px at 50% 42%,rgba(125,211,252,.08),transparent 70%),var(--ui-bg)}
+.ui-home h1{background:linear-gradient(180deg,#fff 30%,#a1a1aa);-webkit-background-clip:text;background-clip:text;color:transparent}

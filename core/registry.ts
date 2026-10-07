@@ -8,7 +8,7 @@ import { pathToFileURL } from 'node:url';
 import { checkManifest, satisfies } from '../packages/manifest/index.mjs';
 import { checkCatalogue } from '../packages/tools/index.mjs';
 import type { Core } from './core.ts';
-import { CORE_VERSION, ROOT } from './core.ts';
+import { CORE_VERSION, ROOT, FROM_DIST } from './core.ts';
 import type { Manifest, AppServer, Team, ToolSpec } from './types.ts';
 import { migrate } from './migrate.ts';
 import { now, fail } from './util.ts';
@@ -77,7 +77,9 @@ export class Registry {
       if (m.tables) await migrate(this.core.db, m.id, path.join(a!.dir, m.tables), (s) => this.core.log.info(s));
       let server: AppServer = { handlers: {} };
       if (m.server) {
-        const mod = await import(pathToFileURL(path.join(a!.dir, m.server)).href);
+        const built = path.join(ROOT, 'dist', 'server', 'apps', `${m.id}.mjs`);
+        const file = a!.builtin && FROM_DIST && fs.existsSync(built) ? built : path.join(a!.dir, m.server);
+        const mod = await import(pathToFileURL(file).href);
         server = await mod.default(this.contextFor(a!));
       }
       if ((server as any).unavailable) a!.unavailable = (server as any).unavailable;
