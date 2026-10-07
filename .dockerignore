@@ -1,0 +1,10 @@
+node_modules
+dist
+.data
+.shots
+.git
+.vercel
+vendor
+*.names
+.env
+test-results

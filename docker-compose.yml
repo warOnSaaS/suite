@@ -1,0 +1,50 @@
+# Host wOS yourself: the server, Postgres and Caddy (HTTPS certificates, automatically).
+#   1. cp .env.example .env   and set WOS_DOMAIN (a domain pointing at this machine) and the rest
+#   2. docker compose up -d
+#   3. open https://<your domain> and sign in; the first person to sign in owns the server
+# Apps that need more add a profile, for example: docker compose --profile meetings up -d (when Meetings ships).
+services:
+  wos:
+    build: { context: ., dockerfile: deploy/Dockerfile }
+    image: ghcr.io/waronsaas/suite:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://wos:${POSTGRES_PASSWORD:-wos}@postgres:5432/wos
+      PUBLIC_URL: https://${WOS_DOMAIN:-localhost}
+      WOS_DATA_DIR: /data
+    volumes: [wos-data:/data]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wos}
+      POSTGRES_DB: wos
+    volumes: [pg-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wos"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      WOS_DOMAIN: ${WOS_DOMAIN:-localhost}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [wos]
+
+volumes:
+  wos-data:
+  pg-data:
+  caddy-data:
+  caddy-config:

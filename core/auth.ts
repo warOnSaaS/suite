@@ -94,6 +94,7 @@ function signInPage(core: Core, res: ServerResponse, next: string, note = '', in
   const gh = !!core.env.GITHUB_OAUTH_CLIENT_ID;
   const carry = `${encodeURIComponent(next)}${invite ? `&invite=${encodeURIComponent(invite)}` : ''}`;
   page(res, 200, 'Sign in', `<h1>Sign in to wOS</h1><p class="wos-gate-sub">One place for your team and its AI agents.</p>${note ? `<div class="ui-notice is-quiet">${note}</div>` : ''}
+${core.env.WOS_SOLO === '1' ? `<form method="post" action="/auth/solo"><input type="hidden" name="next" value="${esc(next)}"><button class="ui-btn is-lg is-block" type="submit">Continue on this computer</button></form><p class="ui-hint wos-center">One-person mode: no account, no email. Only works from this computer.</p>` : ''}
 ${core.demo ? `<a class="ui-btn is-lg is-block" href="/auth/demo?next=${carry}">Try the demo</a><p class="ui-hint wos-center">A private sandbox with example data. No account needed.</p>` : ''}
 ${gh ? `<a class="ui-btn ${core.demo ? 'is-quiet' : ''} is-lg is-block" href="/auth/github?next=${carry}">Continue with GitHub</a>` : ''}
 <form class="wos-gate-form" method="post" action="/auth/email"><label class="ui-field"><span>Or get a sign-in link by email</span><input class="ui-input" type="email" name="email" required autocomplete="email" placeholder="you@example.com"></label><input type="hidden" name="next" value="${esc(next)}"><input type="hidden" name="invite" value="${esc(invite)}"><button class="ui-btn is-quiet is-block" type="submit">Email me a link</button></form>
@@ -112,6 +113,19 @@ export async function handleAuth(core: Core, req: IncomingMessage, res: ServerRe
     const raw = cookieOf(req);
     if (raw && req.method === 'POST') { const s = await sessionFromToken(core, raw); if (s) await core.db.run('UPDATE sessions SET revoked_at = ? WHERE id = ?', [now(), s.id]); }
     res.writeHead(302, { location: '/auth/sign-in', 'set-cookie': setCookie(core, '', 0) }).end();
+    return true;
+  }
+
+  // One-person mode (WOS_SOLO=1): the person at this computer signs in with one press. Refused from any
+  // other machine, so exposing the port by mistake does not open the data.
+  if (p === '/auth/solo' && req.method === 'POST') {
+    const addr = req.socket?.remoteAddress ?? '';
+    const local = /^(127\.|::1$|::ffff:127\.)/.test(addr) && !req.headers['x-forwarded-for'];
+    if (core.env.WOS_SOLO !== '1' || !local) { page(res, 403, 'Not here', '<h1>One-person mode only works on this computer</h1>'); return true; }
+    const b = await bodyOf(req);
+    const first = await core.db.get<any>("SELECT u.* FROM users u JOIN members m ON m.user_id = u.id WHERE m.role = 'owner' ORDER BY u.created_at LIMIT 1");
+    const user = first ?? (await core.users.create({ name: core.env.WOS_SOLO_NAME || 'You', email: core.env.WOS_SOLO_EMAIL || null }));
+    await signInAndRedirect(core, res, user, safeNext(b.next));
     return true;
   }
 
