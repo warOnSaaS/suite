@@ -66,8 +66,38 @@ function planFor(goal: string) {
   return ['Read the brief', 'Gather what we already have', 'Check the approach with you', 'Write up the result'];
 }
 
+// Plain commands the script understands, in the order they are written: "create a contact for Dana at
+// Acme Dental and post in #general that I did". Each becomes a real tool call, one per turn.
+function commandsIn(req: ChatRequest, text: string) {
+  const out: { name: string; input: any; done: string }[] = [];
+  const contact = /\b(?:create|add|make)\s+(?:a\s+)?(?:new\s+)?contact\s+(?:for|called|named)\s+([A-Z][\w'-]*(?:\s+[A-Z][\w'-]*)?)(?:\s+(?:at|from|with)\s+([A-Z][\w&'.-]*(?:\s+[A-Z][\w&'.-]*)*))?/.exec(text);
+  if (contact && has(req, 'crm.create_contact')) {
+    const [first, ...rest] = contact[1].trim().split(/\s+/);
+    const org = contact[2]?.trim();
+    out.push({ name: 'crm.create_contact', input: { first_name: first, ...(rest.length ? { last_name: rest.join(' ') } : {}), ...(org ? { org } : {}) }, done: `I created a contact for ${contact[1].trim()}${org ? ` at ${org}` : ''} in the CRM.` });
+  }
+  const post = /\b(?:post|say|write|send)\s+(?:a message\s+)?(?:in|to)\s+#([a-z0-9][\w-]*)\s*(?:that\s+|saying\s+|:\s*)?(.*)$/i.exec(text);
+  if (post && has(req, 'chat.post_message')) {
+    const said = post[2].trim().replace(/[.!]+$/, '');
+    const body = !said || /^(i did|i have|i've done it|i did it|it is done|it's done|done)$/i.test(said) ? (out.map((c) => c.done).join(' ') || 'Done.') : said.charAt(0).toUpperCase() + said.slice(1) + '.';
+    out.push({ name: 'chat.post_message', input: { channel: post[1], body }, done: `I posted in #${post[1]}: "${body}"` });
+  }
+  return out;
+}
+
 function chatTurn(req: ChatRequest): Part[] {
   const prev = lastResults(req.messages);
+  const text0 = lastUserText(req.messages);
+  const cmds = commandsIn(req, text0);
+  if (cmds.length) {
+    let lastUser = -1;
+    req.messages.forEach((m, i) => { if (m.role === 'user' && m.content.some((p) => p.type === 'text')) lastUser = i; });
+    const doneSoFar = req.messages.slice(lastUser + 1).filter((m) => m.role === 'assistant' && m.content.some((p) => p.type === 'tool_call')).length;
+    const failed = prev.find((r: any) => r.isError || /^(error|that did not work)/i.test(r.output ?? ''));
+    if (failed) return [say(`That did not work: ${failed.output.slice(0, 300)}`)];
+    if (doneSoFar < cmds.length) { const c = cmds[doneSoFar]; return [say(doneSoFar ? 'Next,' : 'On it.'), tool(c.name, c.input)]; }
+    return [say(`${cmds.map((c) => c.done).join(' ')}\n\n(Demo model: a script that calls real tools. Pick a real model in the model menu to have a proper conversation.)`)];
+  }
   if (prev.length) {
     const out = prev.map((r) => `**${r.name}** returned:\n\n${r.output.length > 900 ? `${r.output.slice(0, 900)}...` : r.output}`).join('\n\n');
     return [say(`${out}\n\n(Demo model: a script that calls real tools. Pick a real model in the model menu to have a proper conversation.)`)];
