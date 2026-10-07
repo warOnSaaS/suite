@@ -7,6 +7,7 @@ import { makeCore, person, serveCore, tokenFor } from './helpers.ts';
 const EXAMPLE = path.resolve('packages/manifest/example');
 
 async function tableExists(core: any, name: string) {
+  if (core.db.dialect === 'postgres') return !!(await core.db.get('SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = ?', [name]));
   return !!(await core.db.get("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", [name]));
 }
 

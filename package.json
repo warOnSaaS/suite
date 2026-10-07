@@ -21,7 +21,8 @@
     "check": "npm run typecheck && npm test && npm run lint:doors && npm run check:clean",
     "sync-kit": "node scripts/sync-kit.mjs",
     "shots": "node scripts/shots.mjs",
-    "gen:mounts": "node --disable-warning=ExperimentalWarning scripts/gen-mounts.ts"
+    "gen:mounts": "node --disable-warning=ExperimentalWarning scripts/gen-mounts.ts",
+    "test:pg": "TEST_DATABASE_URL=${TEST_DATABASE_URL:-postgres://postgres:wos@localhost:55499/wos} npm test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",

@@ -7,6 +7,17 @@ import { ROLE_SCOPES, type Caller, type Role } from '../../core/types.ts';
 
 export async function makeCore(env: Record<string, string> = {}) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wos-test-'));
+  // TEST_DATABASE_URL=postgres://... runs the same tests on Postgres, each core in a fresh schema.
+  const pgUrl = process.env.TEST_DATABASE_URL;
+  if (pgUrl) {
+    const pg = (await import('pg')).default;
+    const schema = `t_${Math.random().toString(36).slice(2, 10)}`;
+    const c = new pg.Client({ connectionString: pgUrl });
+    await c.connect();
+    await c.query(`CREATE SCHEMA ${schema}`);
+    await c.end();
+    env = { ...env, DATABASE_URL: `${pgUrl}${pgUrl.includes('?') ? '&' : '?'}options=${encodeURIComponent(`-c search_path=${schema}`)}` };
+  }
   const core = new Core({ env: { WOS_DB: 'memory', WOS_SECRET_KEY: 'test-key', PUBLIC_URL: 'http://localhost:9', WOS_DEFAULT_APPS: '', WOS_REDUCED: '1', WOS_DEMO_PACE_MS: '0', ...env }, dataDir, quiet: true });
   await core.start();
   return core;

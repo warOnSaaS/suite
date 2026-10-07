@@ -94,7 +94,7 @@ test('hosting.status, hosting.doctor, hosting.export, audit.list and events.poll
   const sam = await person(core);
   const st = await sam.call('hosting.status');
   assert.equal(st.mode, 'self-hosted');
-  assert.match(st.storage, /SQLite/);
+  assert.match(st.storage, /SQLite|Postgres/);
   const doc = await sam.call('hosting.doctor');
   assert.ok(doc.checks.some((c: any) => c.name === 'Email' && !c.ok));
   const exp = await sam.call('hosting.export');
