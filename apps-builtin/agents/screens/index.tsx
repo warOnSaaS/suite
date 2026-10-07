@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { callTool, on } from '../../../apps/shell/src/api.ts';
 import { Btn, Dot, Empty, Icon, Kbd, STATUS_LABEL, ago, toast, useTool } from '../../../apps/shell/src/kit.tsx';
 
-interface Run { id: string; agent_id: string; agent_name: string; model: string | null; runtime: string; goal: string; status: string; status_note: string | null; percent: number | null; steps_done: number; steps_total: number; current_step: { n: number; text: string } | null; plan_note: string | null; spend: { tokens: number; turns: number; budget_tokens: number; budget_turns: number; percent: number }; waiting_alert_id: string | null; started_at: string; updated_at: string; ended_at: string | null }
+interface Run { id: string; agent_id: string; agent_name: string; model: string | null; runtime: string; goal: string; status: string; status_note: string | null; percent: number | null; steps_done: number; steps_total: number; current_step: { n: number; text: string } | null; plan_note: string | null; spend: { tokens: number; turns: number; budget_tokens: number; budget_turns: number; percent: number }; waiting_alert_id: string | null; task_ref?: string | null; started_at: string; updated_at: string; ended_at: string | null }
 interface Agent { id: string; name: string; role: string; provider_id: string | null; model: string | null; tools: string[] | null; scopes: string[]; budget: any; last_run: Run | null }
 interface Ev { id: string; kind: string; payload: any; at: string }
 
@@ -153,6 +153,7 @@ function Panel({ run, onFocus, compact }: { run: Run; onFocus?: () => void; comp
         {onFocus && <Btn tool="none" why="opens the run full screen" variant="ghost" size="sm" icon aria-label="Focus" onClick={onFocus}><Icon name="expand" size={15} /></Btn>}
       </header>
       <p className="wos-goal">{run.goal}</p>
+      {run.task_ref?.startsWith('board:') && <a className="wos-task-ref wos-muted" href={`/a/board/t/${run.task_ref.slice(6).split(' ')[0]}`} data-tool="none" data-why="opens the board task" onClick={(e) => { e.preventDefault(); history.pushState(null, '', e.currentTarget.getAttribute('href')); dispatchEvent(new PopStateEvent('popstate')); }}>Board task: {run.task_ref.slice(6).split(' ').slice(1).join(' ') || run.task_ref.slice(6)}</a>}
       <Progress run={run} />
       <div className="wos-feed" ref={feed}>
         {events.filter(visible).map((e) => <Line key={e.id} e={e} />)}
@@ -302,8 +303,19 @@ function StartRun({ agents, preset, onClose, onStarted }: { agents: Agent[]; pre
   const ref = useRef<HTMLDialogElement>(null);
   const [agentId, setAgentId] = useState(preset?.id ?? agents[0]?.id ?? '');
   const [goal, setGoal] = useState('');
+  // Board tasks to work on, when the board is on (an off board throws no_tool and the field stays hidden).
+  const [tasks, setTasks] = useState<{ id: string; title: string }[]>([]);
+  const [task, setTask] = useState('');
   useEffect(() => { ref.current?.showModal(); }, []);
-  const go = async () => { const r = await callTool('agents.start', { agent_id: agentId, goal }).catch(err); if (r) onStarted(r); };
+  useEffect(() => {
+    callTool<any>('board.find_tasks', {}).then((r) => {
+      const text = String(r?.result ?? '');
+      setTasks([...text.matchAll(/\*\*(.+?)\*\*.*?id `([^`]+)`/g)].map((m) => ({ title: m[1], id: m[2] })));
+    }).catch(() => {});
+  }, []);
+  const picked = tasks.find((t) => t.id === task);
+  const goalText = goal.trim() || (picked ? `Work on the board task "${picked.title}"` : '');
+  const go = async () => { const r = await callTool('agents.start', { agent_id: agentId, goal: goalText, ...(picked ? { task_ref: `board:${picked.id} ${picked.title}` } : {}) }).catch(err); if (r) onStarted(r); };
   return (
     <dialog ref={ref} className="ui-dialog" onClose={onClose}>
       <div className="ui-dialog-h"><h3>Start an agent</h3><button className="ui-x" data-tool="none" data-why="closes the dialog" onClick={() => ref.current?.close()} aria-label="Close">×</button></div>
@@ -311,13 +323,14 @@ function StartRun({ agents, preset, onClose, onStarted }: { agents: Agent[]; pre
         {agents.length ? (
           <>
             <label className="ui-field"><span>Agent</span><select className="ui-select" value={agentId} onChange={(e) => setAgentId(e.target.value)} data-tool="none" data-why="part of the start form">{agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>
-            <label className="ui-field"><span>Goal</span><textarea className="ui-textarea" autoFocus value={goal} onChange={(e) => setGoal(e.target.value)} placeholder="Find 20 dental clinics in Ohio and add them to the CRM" onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) go(); }} /></label>
+            {tasks.length > 0 && <label className="ui-field"><span>Board task <small>optional</small></span><select className="ui-select" value={task} onChange={(e) => setTask(e.target.value)} data-tool="none" data-why="part of the start form"><option value="">None</option>{tasks.map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}</select></label>}
+            <label className="ui-field"><span>Goal</span><textarea className="ui-textarea" autoFocus value={goal} onChange={(e) => setGoal(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) go(); }} placeholder={picked ? `Work on the board task "${picked.title}"` : 'Find 20 dental clinics in Ohio and add them to the CRM'} /></label>
           </>
         ) : <p>Save an agent first.</p>}
       </form>
       <div className="ui-dialog-a">
         <Btn tool="none" why="closes the dialog" variant="quiet" onClick={() => ref.current?.close()}>Cancel</Btn>
-        <Btn tool="agents.start" type="submit" form="start-run" disabled={!agentId || goal.trim().length < 3}>Start</Btn>
+        <Btn tool="agents.start" type="submit" form="start-run" disabled={!agentId || goalText.length < 3}>Start</Btn>
       </div>
     </dialog>
   );

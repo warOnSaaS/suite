@@ -14,7 +14,7 @@ const root = path.resolve(new URL('..', import.meta.url).pathname);
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wos-parity-'));
 const port = 8700 + Math.floor(Math.random() * 200);
 // The real app packages when they are vendored (node scripts/vendor.mjs), otherwise the example app.
-const vendored = ['chat', 'email', 'agent-kanban', 'crm'].map((d) => path.join(root, 'vendor', d)).filter((d) => fs.existsSync(path.join(d, 'wos-app.json')));
+const vendored = ['chat', 'email', 'agent-kanban', 'crm', 'meet'].map((d) => path.join(root, 'vendor', d)).filter((d) => fs.existsSync(path.join(d, 'wos-app.json')));
 const parityApps = process.env.PARITY_APPS || (vendored.length ? vendored.join(',') : path.join(root, 'packages/manifest/example'));
 Object.assign(process.env, { WOS_DEMO: '1', WOS_DATA_DIR: dataDir, WOS_APPS: parityApps, PORT: String(port), PUBLIC_URL: `http://localhost:${port}`, WOS_DEMO_PACE_MS: '300', WOS_SECRET_KEY: 'parity' });
 if (!fs.existsSync(path.join(root, 'dist/shell/index.html'))) { console.error('Build the shell first: npm run build'); process.exit(2); }
@@ -110,6 +110,7 @@ const SUBSCREENS = {
   chat: { lists: ['/', '/browse', '/activity', '/search', '/settings'], records: [['/', /\/c\/[^/]+$/]] },
   email: { lists: ['/', '/inbox/fyi', '/drafts', '/approvals', '/settings'], records: [['/', /\/t\/[^/]+$/, 'optional: a demo team has no mailbox until one is connected']] },
   crm: { lists: ['/contacts', '/leads', '/organizations', '/pipeline', '/deals', '/activities', '/import', '/settings', '/deleted', '/duplicates'], records: [['/contacts', /\/a\/crm\/contacts\/c_/], ['/organizations', /\/a\/crm\/organizations\/o_/], ['/deals', /\/a\/crm\/deals\/d_/]] },
+  meet: { lists: ['/'], records: [['/', /\/a\/meet\/m\/[^/]+$/]], before: async () => { await tool('meet.create', { title: 'Parity check' }).catch(() => {}); } },
   board: { lists: ['/', '/alerts', '/settings'], records: [['/', /\/a\/board\/(.*\/)?(t|task|tasks)\/[^/]+$/], ['/', /\/a\/board\/(.*\/)?(i|idea|ideas)\/[^/]+$/]] },
 };
 const linkOn = async (path, re) => {
@@ -128,6 +129,7 @@ for (const [id, a] of core.registry.apps) {
   await tool('apps.enable', { app: id }).catch(() => {});
   const label = `${a.manifest.name}${a.dir.endsWith('packages/manifest/example') ? ' (example app)' : ''}`;
   const plan = SUBSCREENS[id] ?? { lists: ['/'], records: [] };
+  await plan.before?.();
   for (const sub of plan.lists) await scan(id, `${label} ${sub}`, `/a/${id}${sub === '/' ? '' : sub}`);
   for (const [list, re, optional] of plan.records) {
     const href = await linkOn(`/a/${id}${list === '/' ? '' : list}`, re);

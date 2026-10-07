@@ -189,6 +189,8 @@ code { font-family: var(--ui-mono); font-size: .92em; }
 .wos-panel-h b { font-weight: var(--ui-weight-strong); }
 .wos-panel-h .ui-btn { margin-left: auto; }
 .wos-goal { margin: 0; font-size: 14px; line-height: 1.45; color: var(--ui-ink); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.wos-task-ref { display: block; font-size: 12.5px; margin-top: -2px; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wos-task-ref:hover { color: var(--ui-ink); text-decoration: underline; }
 .wos-progress { display: grid; gap: 5px; }
 .wos-progress small { font-size: 12.5px; }
 .wos-progress small b { font-family: var(--ui-numeric); font-variant-numeric: tabular-nums; }
