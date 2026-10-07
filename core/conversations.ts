@@ -22,7 +22,9 @@ export async function runToolCall(core: Core, caller: Caller, part: Extract<Part
   try {
     const r = await core.catalogue.call(part.name, part.input, caller, 'agent');
     if (r.pending) return { type: 'tool_result', id: part.id, name: part.name, output: `Waiting for ${caller.user?.name ?? 'the person'} to approve this in their inbox (alert ${r.pending.alert_id}). Do not retry; you will be told the outcome.`, pending: r.pending };
-    const out = typeof r.result === 'string' ? r.result : JSON.stringify(r.result);
+    // Mounted apps answer { result: "text" }: give the model the text itself.
+    const res: any = r.result;
+    const out = typeof res === 'string' ? res : res && typeof res.result === 'string' && Object.keys(res).length === 1 ? res.result : JSON.stringify(res);
     return { type: 'tool_result', id: part.id, name: part.name, output: out.length > 12000 ? `${out.slice(0, 12000)}... (cut)` : out };
   } catch (e: any) {
     return { type: 'tool_result', id: part.id, name: part.name, output: e instanceof WosError ? `${e.code}: ${e.message}` : String(e.message ?? e), isError: true };

@@ -117,8 +117,8 @@ function render(m: Msg) {
     <div className="ui-ai">
       <span className="ui-av">w</span>
       <div className="ui-body">
-        {m.tools?.map((t, i) => <div key={i} className="ui-tool"><b>{t.name}</b><span>called</span></div>)}
         {m.text && <Markdown text={m.text} />}
+        {m.tools?.map((t, i) => <div key={i} className="ui-tool"><b>{t.name}</b><span>called</span></div>)}
       </div>
     </div>
   );
