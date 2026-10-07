@@ -8,6 +8,8 @@ const P: Record<string, ReactNode> = {
   agents: <><rect x="4" y="4" width="7" height="7" rx="1.5" /><rect x="13" y="4" width="7" height="7" rx="1.5" /><rect x="4" y="13" width="7" height="7" rx="1.5" /><rect x="13" y="13" width="7" height="7" rx="1.5" /></>,
   board: <><rect x="4" y="5" width="4.5" height="14" rx="1" /><rect x="9.75" y="5" width="4.5" height="9" rx="1" /><rect x="15.5" y="5" width="4.5" height="11.5" rx="1" /></>,
   crm: <><circle cx="9" cy="9" r="3" /><path d="M3.5 19c.8-3 3-4.5 5.5-4.5s4.7 1.5 5.5 4.5" /><circle cx="17" cy="8" r="2.3" /><path d="M16 13.2c2.3 0 4 1.3 4.6 3.8" /></>,
+  mail: <><rect x="3.5" y="5.5" width="17" height="13" rx="2" /><path d="m4 7 8 6 8-6" /></>,
+  video: <><rect x="3.5" y="6.5" width="12" height="11" rx="2" /><path d="m15.5 10.5 5-3v9l-5-3" /></>,
   inbox: <><path d="M4 13 6.5 5h11L20 13v6H4z" /><path d="M4 13h4.5l1 2h5l1-2H20" /></>,
   settings: <><circle cx="12" cy="12" r="3" /><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8" /></>,
   plus: <path d="M12 5v14M5 12h14" />,
@@ -26,7 +28,10 @@ const P: Record<string, ReactNode> = {
   key: <><circle cx="8" cy="15" r="3.5" /><path d="m10.5 12.5 8-8M16 7l2.5 2.5" /></>,
 };
 
+const ALIAS: Record<string, string> = { email: 'mail', contacts: 'crm', meet: 'video', meetings: 'video', kanban: 'board' };
+
 export function Icon({ name, size = 18 }: { name: string; size?: number }) {
+  name = ALIAS[name] ?? name;
   return (
     <svg className="wos-ic" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       {P[name] ?? P.agents}

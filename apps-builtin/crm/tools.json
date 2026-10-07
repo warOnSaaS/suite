@@ -6,7 +6,7 @@
     {
       "name": "crm.find",
       "title": "Find records",
-      "description": "Search contacts, organizations, deals and activities by any words: a name, a company, an email, a city, words from a note. Filter by kind, owner, deal stage or organization. Leave q empty to list.",
+      "description": "Search contacts, leads, organizations, deals and activities by any words: a name, a company, an email, a city, words from a note. Filter by kind, owner, deal stage, lead status or organization. Leave q empty to list.",
       "input": {
         "type": "object",
         "properties": {
@@ -31,6 +31,10 @@
           "stage": {
             "type": "string",
             "description": "Deals only: a stage name, e.g. \"Proposal\""
+          },
+          "status": {
+            "type": "string",
+            "description": "Contacts only: a lead status (lead, working, qualified, customer, not_a_fit), or \"lead\" for every open lead"
           },
           "org": {
             "type": "string",
@@ -60,7 +64,7 @@
     {
       "name": "crm.open_record",
       "title": "Open a record",
-      "description": "One contact, organization, deal or activity with its details, links and history (newest first). Takes an id from find.",
+      "description": "One contact, organization, deal or activity with its details, links, timeline (newest first) and recent changes. Takes an id from find.",
       "input": {
         "type": "object",
         "properties": {
@@ -87,9 +91,509 @@
       "test": "test/unit/mount.test.ts"
     },
     {
+      "name": "crm.describe",
+      "title": "Describe the CRM",
+      "description": "The kinds of record and their fields: our name, Salesforce API name, type, picklist values, custom fields, stages with probability and forecast category, and saved views. Give a kind for its fields; leave it out for the overview. Matches Salesforce getObjectSchema.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "contacts, organizations, deals or activities (Salesforce names work too: Contact, Lead, Account, Opportunity, Task, Event)"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.query",
+      "title": "Query (SOQL)",
+      "description": "Run a read-only SOQL-style query: SELECT fields FROM object WHERE ... ORDER BY ... LIMIT n. Objects and fields by our names or Salesforce names (Opportunity, CloseDate, Account.Name, Owner.Name, Region__c). Date literals like THIS_QUARTER, LAST_N_DAYS:30; COUNT() and SUM(Amount) with GROUP BY one field. Matches Salesforce soqlQuery.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "soql": {
+            "type": "string",
+            "description": "e.g. SELECT Name, StageName, Amount FROM Opportunity WHERE CloseDate = THIS_QUARTER AND Owner.Name = 'Sam' ORDER BY Amount DESC"
+          }
+        },
+        "required": [
+          "soql"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.related",
+      "title": "Related records",
+      "description": "Records linked to one record: contacts, deals, organizations, activities, open tasks or history. Without a relation, a count of each. Matches Salesforce getRelatedRecords.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The record id"
+          },
+          "relation": {
+            "type": "string",
+            "enum": [
+              "contacts",
+              "deals",
+              "organizations",
+              "activities",
+              "tasks",
+              "history"
+            ]
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.recent",
+      "title": "Recent records",
+      "description": "Records created or changed lately, newest first: mine (\"me\") or the whole team. Matches Salesforce listRecentSobjectRecords.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "who": {
+            "type": "string",
+            "description": "\"me\" (default) or \"everyone\", or a name"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "contacts",
+              "organizations",
+              "deals",
+              "activities"
+            ]
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.whoami",
+      "title": "Who am I",
+      "description": "The signed-in person, their role, what this connection may do, and what they can see. Matches Salesforce getUserInfo.",
+      "input": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.history",
+      "title": "Change history",
+      "description": "What changed on a record, newest first: field, old and new value, who, and whether it was a person, an agent or an import.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The record id"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.my_tasks",
+      "title": "Tasks due",
+      "description": "Open tasks, soonest first, with what is overdue. Defaults to the person signed in's; use who \"everyone\" for the team.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "who": {
+            "type": "string",
+            "description": "A name, \"me\" (default) or \"everyone\""
+          },
+          "within_days": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 365,
+            "description": "Only tasks due within this many days (overdue always included)"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.pipeline",
+      "title": "Pipeline",
+      "description": "Deals by stage with counts, totals and weighted totals (amount times probability). Give a stage to list its deals.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "stage": {
+            "type": "string",
+            "description": "Only this stage"
+          },
+          "owner": {
+            "type": "string",
+            "description": "Only this person's deals (name or \"me\")"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.recent_activity",
+      "title": "Recent activity",
+      "description": "What changed in the CRM lately and who did it: people, and the AI apps they connected (for example \"Claude (Sam's) moved Online booking to Proposal\"), newest first, plus which AI apps are connected right now. Use it to see what other agents did before you act, or when someone asks \"what changed\" or \"what did ChatGPT do\".",
+      "input": {
+        "type": "object",
+        "properties": {
+          "since": {
+            "type": "string",
+            "description": "Only changes after this time, e.g. 2026-10-07T14:00"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "description": "At most this many (default 15)"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.find_duplicates",
+      "title": "Find duplicates",
+      "description": "Groups of contacts, organizations or deals that look like the same one: same email, name, phone or website. Merge them with merge_records.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "contacts",
+              "organizations",
+              "deals"
+            ]
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.list_deleted",
+      "title": "Recently deleted",
+      "description": "Records deleted in the last 30 days, newest first. Bring one back with restore_record.",
+      "input": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.list_views",
+      "title": "Saved views",
+      "description": "Saved list views: name, kind, conditions and columns. Open one on the web at /<kind>?view=<id>, or run its conditions with query.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "contacts",
+              "organizations",
+              "deals",
+              "activities"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.export_records",
+      "title": "Export records",
+      "description": "Every record of one kind as CSV, with our headers (imports straight back) or Salesforce API names (for Data Loader). Your data is never stuck here.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "contacts",
+              "organizations",
+              "deals",
+              "activities"
+            ]
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "csv",
+              "salesforce"
+            ],
+            "description": "csv (default) or salesforce"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.import_preview",
+      "title": "Preview an import",
+      "description": "Check a CSV before importing: how each column is matched, and what happens to every row (new, updated, skipped with the reason). Changes nothing. Salesforce Data Export files and report exports both work.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "contacts",
+              "leads",
+              "organizations",
+              "deals",
+              "activities"
+            ],
+            "description": "What the file holds"
+          },
+          "csv": {
+            "type": "string",
+            "description": "The whole CSV file as text"
+          },
+          "mapping": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Column name -> field, to override the automatic matching (\"\" leaves a column out)"
+          },
+          "filename": {
+            "type": "string",
+            "description": "The file name, e.g. Contact.csv"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "text",
+              "html"
+            ],
+            "description": "html: the screens use it"
+          }
+        },
+        "required": [
+          "kind",
+          "csv"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.ask",
+      "title": "Ask",
+      "description": "The ask box on the home screen: a plain question answered from the records with the tools above (no AI model). Agents should call the tools directly instead.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The question"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
       "name": "crm.create_contact",
       "title": "Add a contact",
-      "description": "Add a person. Find them first so there is no duplicate. org links them to an organization by name or id (it must exist; create it with create_organization).",
+      "description": "Add a person, or a lead (give a status such as \"lead\" and their company). Find them first so there is no duplicate. org links them to an organization by name or id (it must exist; create it with create_organization).",
       "input": {
         "type": "object",
         "properties": {
@@ -112,9 +616,25 @@
             "type": "string",
             "description": "Phone"
           },
+          "mobile": {
+            "type": "string",
+            "description": "Mobile"
+          },
           "org": {
             "type": "string",
             "description": "Organization name or id"
+          },
+          "status": {
+            "type": "string",
+            "description": "A lead status: lead, working, qualified, customer, not_a_fit. Leave out for an ordinary contact."
+          },
+          "company": {
+            "type": "string",
+            "description": "Leads: the company as they gave it"
+          },
+          "source": {
+            "type": "string",
+            "description": "Where they came from: Web, Phone, Referral, Event, Purchased list, Other"
           },
           "owner": {
             "type": "string",
@@ -164,6 +684,10 @@
             "type": "string",
             "description": "Industry"
           },
+          "type": {
+            "type": "string",
+            "description": "Prospect, Customer, Partner, Former customer or Other"
+          },
           "phone": {
             "type": "string",
             "description": "Phone"
@@ -171,6 +695,10 @@
           "city": {
             "type": "string",
             "description": "City"
+          },
+          "parent": {
+            "type": "string",
+            "description": "Head office: another organization (name or id)"
           },
           "owner": {
             "type": "string",
@@ -201,7 +729,7 @@
     {
       "name": "crm.create_deal",
       "title": "Add a deal",
-      "description": "Add a deal to the pipeline. Link it to an organization and, if known, the contact leading it.",
+      "description": "Add a deal to the pipeline. Link it to an organization and, if known, the contact leading it. Probability follows the stage; the close date defaults to 30 days out.",
       "input": {
         "type": "object",
         "properties": {
@@ -230,6 +758,14 @@
             "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
             "description": "Expected close date"
           },
+          "next_step": {
+            "type": "string",
+            "description": "The next step"
+          },
+          "type": {
+            "type": "string",
+            "description": "New business, Upsell or Renewal"
+          },
           "owner": {
             "type": "string",
             "description": "Who owns it (name). Defaults to you."
@@ -257,9 +793,51 @@
       "test": "test/unit/mount.test.ts"
     },
     {
+      "name": "crm.create_record",
+      "title": "Create a record",
+      "description": "Create any kind of record with any fields, by our field names or Salesforce API names (custom fields too). Kind \"Lead\" makes a contact with status lead. Matches Salesforce createSobjectRecord.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "contacts, organizations, deals or activities (Salesforce names work too: Contact, Lead, Account, Opportunity, Task, Event)"
+          },
+          "fields": {
+            "type": "object",
+            "additionalProperties": {
+              "type": [
+                "string",
+                "number",
+                "boolean",
+                "null"
+              ]
+            },
+            "description": "Field names and values, e.g. {\"LastName\": \"Ortiz\", \"Company\": \"Ortiz Dental\"} or {\"name\": \"Renewal\", \"org\": \"Acme Dental\", \"amount\": 4000}"
+          }
+        },
+        "required": [
+          "kind",
+          "fields"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
       "name": "crm.update_record",
       "title": "Change a record",
-      "description": "Change fields on a contact, organization, deal or activity. Send only the fields to change; send an empty string to clear one.",
+      "description": "Change fields on a contact, organization, deal or activity. Send only the fields to change; send an empty string to clear one. Field names can be ours or Salesforce's, and custom fields work by key or Salesforce name. Contact: first_name, last_name, title, email, phone, mobile, org, status, company, source, department, website, street, city, state, postal_code, country, do_not_email, do_not_call, owner, about. Organization: name, website, industry, type, phone, parent, street, city, state, postal_code, country, employees, annual_revenue, source, owner, about. Deal: name, org, contact, stage, amount, probability, close_date, next_step, type, source, lost_reason, owner, about. Activity: type, subject, body, at, end_at, due, done, priority, duration_min, outcome, direction, location, contact, org, deal, owner. Matches Salesforce updateSobjectRecord.",
       "input": {
         "type": "object",
         "properties": {
@@ -273,10 +851,11 @@
               "type": [
                 "string",
                 "number",
-                "boolean"
+                "boolean",
+                "null"
               ]
             },
-            "description": "Field names and new values, e.g. {\"title\": \"Partner\", \"phone\": \"555-0100\"}. Contact: first_name, last_name, title, email, phone, org, owner, city, about. Organization: name, website, industry, phone, city, owner, about. Deal: name, org, contact, stage, amount, close_date, owner, about. Activity: type, subject, body, at, due, done, contact, org, deal, owner."
+            "description": "Field names and new values, e.g. {\"title\": \"Partner\", \"phone\": \"555-0100\"}"
           }
         },
         "required": [
@@ -300,7 +879,7 @@
     {
       "name": "crm.move_deal",
       "title": "Move a deal",
-      "description": "Move a deal to another pipeline stage, e.g. to Proposal, Won or Lost.",
+      "description": "Move a deal to another pipeline stage, e.g. to Proposal, Won or Lost. Probability follows the stage. When a deal is lost, give the reason.",
       "input": {
         "type": "object",
         "properties": {
@@ -311,6 +890,10 @@
           "stage": {
             "type": "string",
             "description": "Stage name"
+          },
+          "lost_reason": {
+            "type": "string",
+            "description": "When moving to Lost: Price, Timing, Went with a competitor, No decision, Not a fit (or the team's own list)"
           }
         },
         "required": [
@@ -381,6 +964,22 @@
           "owner": {
             "type": "string",
             "description": "Tasks: who does it (name). Defaults to you."
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "high",
+              "normal"
+            ],
+            "description": "Tasks: high or normal"
+          },
+          "outcome": {
+            "type": "string",
+            "description": "Calls: how it went"
+          },
+          "duration_min": {
+            "type": "integer",
+            "description": "Calls and meetings: minutes"
           }
         },
         "required": [
@@ -434,23 +1033,43 @@
       "test": "test/unit/mount.test.ts"
     },
     {
-      "name": "crm.my_tasks",
-      "title": "Tasks due",
-      "description": "Open tasks, soonest first, with what is overdue. Defaults to the person signed in's; use who \"everyone\" for the team.",
+      "name": "crm.convert_lead",
+      "title": "Convert a lead",
+      "description": "Turn a lead into a qualified contact at an organization (matched by its company or website, or created), and by default open a deal with them as the contact. One step; the same person record carries on.",
       "input": {
         "type": "object",
         "properties": {
-          "who": {
+          "id": {
             "type": "string",
-            "description": "A name, \"me\" (default) or \"everyone\""
+            "description": "The lead (a contact id)"
           },
-          "within_days": {
-            "type": "integer",
-            "minimum": 0,
-            "maximum": 365,
-            "description": "Only tasks due within this many days (overdue always included)"
+          "org": {
+            "type": "string",
+            "description": "An existing organization (name or id) instead of matching the company"
+          },
+          "create_deal": {
+            "type": "boolean",
+            "description": "Open a deal too (default true)"
+          },
+          "deal_name": {
+            "type": "string",
+            "description": "Name for the deal; defaults to \"<organization> deal\""
+          },
+          "amount": {
+            "type": "number"
+          },
+          "close_date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "owner": {
+            "type": "string",
+            "description": "Owner of the new organization and deal; defaults to the lead's owner"
           }
         },
+        "required": [
+          "id"
+        ],
         "additionalProperties": false
       },
       "output": {
@@ -461,22 +1080,48 @@
           }
         }
       },
-      "scope": "read",
+      "scope": "write",
       "confirm": "none",
       "test": "test/unit/mount.test.ts"
     },
     {
-      "name": "crm.pipeline",
-      "title": "Pipeline",
-      "description": "Deals by stage with counts and totals. Give a stage to list its deals.",
+      "name": "crm.upsert_records",
+      "title": "Create or update many",
+      "description": "Create or update up to 200 records of one kind in one step, matched on a key: id, sf_id, email (contacts), website (organizations), name, or a custom field. All or nothing: one bad record and nothing is saved.",
       "input": {
         "type": "object",
         "properties": {
-          "stage": {
+          "kind": {
             "type": "string",
-            "description": "Only this stage"
+            "description": "contacts, organizations, deals or activities (Salesforce names work too: Contact, Lead, Account, Opportunity, Task, Event)"
+          },
+          "key": {
+            "type": "string",
+            "description": "What to match on: id, sf_id, email, website, name, or a custom field such as x.external_id"
+          },
+          "records": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": {
+                "type": [
+                  "string",
+                  "number",
+                  "boolean",
+                  "null"
+                ]
+              }
+            },
+            "minItems": 1,
+            "maxItems": 200,
+            "description": "The records, each with the key and the fields to set"
           }
         },
+        "required": [
+          "kind",
+          "key",
+          "records"
+        ],
         "additionalProperties": false
       },
       "output": {
@@ -487,28 +1132,41 @@
           }
         }
       },
-      "scope": "read",
+      "scope": "write",
       "confirm": "none",
       "test": "test/unit/mount.test.ts"
     },
     {
-      "name": "crm.recent_activity",
-      "title": "Recent activity",
-      "description": "What changed in the CRM lately and who did it: people, and the AI apps they connected (for example \"Claude (Sam's) moved Online booking to Proposal\"), newest first, plus which AI apps are connected right now. Use it to see what other agents did before you act, or when someone asks \"what changed\" or \"what did ChatGPT do\".",
+      "name": "crm.merge_records",
+      "title": "Merge duplicates",
+      "description": "Merge duplicate contacts, organizations or deals into one. Empty fields on the kept record are filled from the others (or pick per field), links and activities move over, and the others are deleted (restorable for 30 days).",
       "input": {
         "type": "object",
         "properties": {
-          "since": {
+          "keep": {
             "type": "string",
-            "description": "Only changes after this time, e.g. 2026-10-07T14:00"
+            "description": "The id of the record to keep"
           },
-          "limit": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 50,
-            "description": "At most this many (default 15)"
+          "merge": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "description": "The ids of the duplicates to merge into it"
+          },
+          "fields": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Optional: field -> the id of the record whose value to keep, e.g. {\"phone\": \"c_x\"}"
           }
         },
+        "required": [
+          "keep",
+          "merge"
+        ],
         "additionalProperties": false
       },
       "output": {
@@ -519,14 +1177,108 @@
           }
         }
       },
-      "scope": "read",
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.save_view",
+      "title": "Save a view",
+      "description": "Save a list view: a kind, conditions (a SOQL WHERE clause, e.g. \"stage = 'proposal' AND owner = 'me'\"), columns and a sort. Give an id to change an existing view.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "An existing view id to change"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "contacts",
+              "organizations",
+              "deals",
+              "activities"
+            ]
+          },
+          "where": {
+            "type": "string",
+            "description": "Conditions, e.g. status = 'working' AND CreatedDate = LAST_N_DAYS:7"
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Field names to show, in order"
+          },
+          "sort": {
+            "type": "string",
+            "description": "A field, optionally followed by desc, e.g. \"amount desc\""
+          },
+          "shared": {
+            "type": "boolean",
+            "description": "Shared with the team (default) or just for you"
+          }
+        },
+        "required": [
+          "name",
+          "kind"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
       "confirm": "none",
       "test": "test/unit/mount.test.ts"
     },
     {
       "name": "crm.delete_record",
       "title": "Delete a record",
-      "description": "Delete a contact, organization, deal or activity. Only when the person clearly asks. Links to it are cleared; activities stay on the other records.",
+      "description": "Delete a contact, organization, deal or activity. Only when the person clearly asks. Deleting is soft: hidden everywhere, restorable for 30 days with restore_record. permanent: true removes it now (the workspace owner only). Matches Salesforce deleteSobjectRecord.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The record id"
+          },
+          "permanent": {
+            "type": "boolean",
+            "description": "Remove for good now (owner only)"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "delete",
+      "confirm": "human",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.restore_record",
+      "title": "Restore a record",
+      "description": "Bring back a record deleted in the last 30 days, with its links.",
       "input": {
         "type": "object",
         "properties": {
@@ -550,6 +1302,362 @@
       },
       "scope": "delete",
       "confirm": "human",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.delete_view",
+      "title": "Delete a view",
+      "description": "Delete a saved view (yours, or any as the workspace owner).",
+      "input": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "delete",
+      "confirm": "human",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.import_commit",
+      "title": "Import a file",
+      "description": "Import a CSV: the same as import_preview, then saved in one step. Re-importing the same file updates instead of duplicating. Owner only.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "contacts",
+              "leads",
+              "organizations",
+              "deals",
+              "activities"
+            ]
+          },
+          "csv": {
+            "type": "string"
+          },
+          "mapping": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "filename": {
+            "type": "string",
+            "description": "The file name"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "text",
+              "html"
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "csv"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.import_salesforce",
+      "title": "Import from Salesforce",
+      "description": "Bring a whole Salesforce org over in one step: Account, Contact, Lead, Opportunity, Task, Event (and User, to match owners) as CSV files from Data Export, the Salesforce CLI (npm run pull:salesforce) or the in-app Salesforce connection. Files are imported in the right order, custom fields (__c) become custom fields, and the import report lists what did not come across. Owner only.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "files": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Salesforce object name -> CSV text, e.g. {\"Account\": \"...\", \"Contact\": \"...\"}"
+          },
+          "pull": {
+            "type": "boolean",
+            "description": "Pull over the Salesforce connection made on the Import page (Bulk API 2.0) instead of files"
+          },
+          "preview": {
+            "type": "boolean",
+            "description": "Only check: show what would happen, change nothing"
+          },
+          "unsupported": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "Optional: what the org has that cannot come across, by type (apex, flows, validation_rules, reports), for the report"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.create_access_token",
+      "title": "Make an access token",
+      "description": "A token for scripts, such as npm run pull:salesforce --to this CRM: it acts as you, with everything you may do, for 30 days. Keep it secret. Owner only.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "string",
+            "enum": [
+              "read",
+              "write"
+            ],
+            "description": "Limit it to reading, or to reading and writing"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.update_settings",
+      "title": "Change settings",
+      "description": "Change workspace settings: currency, pipeline stages (each with a probability and forecast category: pipeline, best_case, commit, closed, omitted), lost reasons, lead sources, organization and deal types. Owner only.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string",
+            "description": "Three-letter code, e.g. USD"
+          },
+          "stages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "probability": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 100
+                },
+                "forecast": {
+                  "type": "string"
+                },
+                "closed": {
+                  "type": "string",
+                  "enum": [
+                    "won",
+                    "lost"
+                  ]
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": false
+            },
+            "description": "The whole pipeline, in order; one stage closed won and one closed lost"
+          },
+          "lost_reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "org_types": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "deal_types": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.define_field",
+      "title": "Add or change a custom field",
+      "description": "Add a custom field to a kind, or change one. Types: text, long, number, money, percent, int, date, datetime, bool, pick, email, phone, url. A pick needs options. sf_name keeps the Salesforce name (Region__c) for import and export. Owner only.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "contacts",
+              "organizations",
+              "deals",
+              "activities"
+            ]
+          },
+          "key": {
+            "type": "string",
+            "description": "Short key, e.g. region; made from the label when left out"
+          },
+          "label": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "long",
+              "number",
+              "money",
+              "percent",
+              "int",
+              "date",
+              "datetime",
+              "bool",
+              "pick",
+              "email",
+              "phone",
+              "url"
+            ]
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "sf_name": {
+            "type": "string",
+            "description": "e.g. Region__c"
+          }
+        },
+        "required": [
+          "kind",
+          "label"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.remove_field",
+      "title": "Remove a custom field",
+      "description": "Remove a custom field from a kind. Values stay on the records, so adding it back brings them back. Owner only.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "contacts",
+              "organizations",
+              "deals",
+              "activities"
+            ]
+          },
+          "key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "key"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
       "test": "test/unit/mount.test.ts"
     }
   ]

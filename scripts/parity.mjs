@@ -13,7 +13,7 @@ import { chromium } from 'playwright';
 const root = path.resolve(new URL('..', import.meta.url).pathname);
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wos-parity-'));
 const port = 8700 + Math.floor(Math.random() * 200);
-Object.assign(process.env, { WOS_DEMO: '1', WOS_DATA_DIR: dataDir, WOS_APPS: path.join(root, 'packages/manifest/example'), PORT: String(port), PUBLIC_URL: `http://localhost:${port}`, WOS_DEMO_PACE_MS: '300', WOS_SECRET_KEY: 'parity' });
+Object.assign(process.env, { WOS_DEMO: '1', WOS_DATA_DIR: dataDir, WOS_APPS: process.env.PARITY_APPS || path.join(root, 'packages/manifest/example'), PORT: String(port), PUBLIC_URL: `http://localhost:${port}`, WOS_DEMO_PACE_MS: '300', WOS_SECRET_KEY: 'parity' });
 if (!fs.existsSync(path.join(root, 'dist/shell/index.html'))) { console.error('Build the shell first: npm run build'); process.exit(2); }
 const { serve } = await import('../apps/server/main.ts');
 const { core } = await serve(port);
@@ -62,15 +62,19 @@ const SCAN = () => {
 
 const results = []; // { app, screen, el, verdict }
 function judge(app, screen, items, { mounted = false } = {}) {
+  // Apps from other repos are measured and reported here; their own builds enforce them.
+  const info = core.registry.apps.get(app);
+  const external = !!info && !info.builtin && !info.dir.endsWith('packages/manifest/example');
   for (const el of items) {
     let verdict;
     if (el.tool === 'none') verdict = el.why ? 'moves' : 'none-without-why';
     else if (el.tool && catalogue.has(el.tool)) verdict = 'tool';
     else if (mounted && el.tool && catalogue.has(`${app}.${el.tool.replace(/^route:.*\/v1\//, '')}`)) verdict = 'tool';
-    else if (mounted && el.tag === 'a' && el.href && !el.href.startsWith('javascript')) verdict = 'moves';
+    // A link to a real address only moves around; a link used as a button (#, javascript:) must name a tool.
+    else if (el.tag === 'a' && el.href && !/^(#|javascript:)/.test(el.href)) verdict = 'moves';
     else if (el.tool) verdict = 'unknown-tool';
     else verdict = 'missing';
-    results.push({ app, screen, mounted, ...el, verdict });
+    results.push({ app, screen, mounted, external, ...el, verdict });
   }
 }
 
@@ -96,7 +100,11 @@ await page.keyboard.press('Escape');
 await scan('agents', 'Start dialog', null, () => page.click('.ui-ph [data-tool="agents.start"]'));
 await page.keyboard.press('Escape');
 if (runs.runs[0]) await scan('agents', 'Run focus', `/agents/run/${runs.runs[0].id}`);
-await scan('chat', 'Chat (example app)', '/a/chat');
+for (const [id, a] of core.registry.apps) {
+  if (a.builtin || !a.manifest.screens) continue;
+  await tool('apps.enable', { app: id }).catch(() => {});
+  await scan(id, `${a.manifest.name}${a.dir.endsWith('packages/manifest/example') ? ' (example app)' : ''}`, `/a/${id}`);
+}
 
 // Mounted apps: look inside their frames.
 for (const [app, sub] of [['crm', '/a/crm'], ['board', '/a/board']]) {
@@ -124,11 +132,11 @@ await browser.close();
 await core.stop();
 
 // ---------- report ----------
-const suite = results.filter((r) => !r.mounted);
+const suite = results.filter((r) => !r.mounted && !r.external);
 const gaps = suite.filter((r) => ['missing', 'unknown-tool', 'none-without-why'].includes(r.verdict));
 const byApp = {};
 for (const r of results) {
-  const a = (byApp[r.app] ??= { app: r.app, mounted: r.mounted, actions: 0, tools: 0, moves: 0, gaps: 0, used: new Set() });
+  const a = (byApp[r.app] ??= { app: r.app, mounted: r.mounted, external: r.external, actions: 0, tools: 0, moves: 0, gaps: 0, used: new Set() });
   if (r.verdict === 'moves') a.moves++;
   else { a.actions++; if (r.verdict === 'tool') { a.tools++; a.used.add(r.tool.startsWith('route:') ? r.tool : r.tool); } else a.gaps++; }
 }
@@ -140,7 +148,7 @@ const lines = [
   '',
   '| App | Screen actions | Covered by a tool | Gaps | Moves only (links, tabs, dialogs) | Enforced |',
   '|---|---|---|---|---|---|',
-  ...Object.values(byApp).map((a) => `| ${a.app} | ${a.actions} | ${a.tools} | ${a.gaps} | ${a.moves} | ${a.mounted ? 'no (mounted pages, measured only)' : 'yes'} |`),
+  ...Object.values(byApp).map((a) => `| ${a.app} | ${a.actions} | ${a.tools} | ${a.gaps} | ${a.moves} | ${a.mounted ? 'no (mounted pages, measured only)' : a.external ? 'in its own repo (reported here)' : 'yes'} |`),
   '',
   '## Tools with no screen (allowed: agents and programs use them)',
   '',
@@ -149,6 +157,10 @@ const lines = [
   '## Gaps in wOS screens (these fail the build)',
   '',
   ...(gaps.length ? gaps.map((g) => `- ${g.screen}: ${g.tag} "${g.text}" (${g.verdict}${g.tool ? `: ${g.tool}` : ''})`) : ['None.']),
+  '',
+  '## Apps from other repos: gaps to fix in those repos',
+  '',
+  ...((g) => (g.length ? g.map((x) => `- ${x.app}, ${x.screen}: ${x.tag} "${x.text}" (${x.verdict}${x.tool ? `: ${x.tool}` : ''})`) : ['None.']))(results.filter((r) => r.external && ['missing', 'unknown-tool', 'none-without-why'].includes(r.verdict))),
   '',
   '## Mounted apps: actions not yet mapped to a tool',
   '',

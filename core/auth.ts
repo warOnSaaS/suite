@@ -28,6 +28,7 @@ export async function callerFromRequest(core: Core, req: IncomingMessage): Promi
   const bearer = (req.headers.authorization ?? '').replace(/^Bearer\s+/i, '').trim();
   const raw = bearer || cookieOf(req);
   if (!raw) return null;
+  if (raw.startsWith('wosd_')) return (await import('./demo.ts')).callerFromPass(core, raw);
   const s = await sessionFromToken(core, raw);
   if (!s) return null;
   const user = await core.users.get(s.userId);
@@ -132,10 +133,8 @@ export async function handleAuth(core: Core, req: IncomingMessage, res: ServerRe
   if (p === '/auth/demo') {
     if (!core.demo) { page(res, 404, 'Not here', '<h1>No demo on this server</h1>'); return true; }
     const { demoSignIn } = await import('./demo.ts');
-    const user = await demoSignIn(core);
-    const teams = await core.users.teamsOf(user.id);
-    const s = await createSession(core, user.id, teams[0]?.id ?? null, 'web', { ttl: 7 * 86400 });
-    res.writeHead(302, { location: safeNext(q.next), 'set-cookie': setCookie(core, s.token, 7 * 86400), 'cache-control': 'no-store' }).end();
+    const pass = await demoSignIn(core);
+    res.writeHead(302, { location: safeNext(q.next), 'set-cookie': setCookie(core, pass, 7 * 86400), 'cache-control': 'no-store' }).end();
     return true;
   }
 

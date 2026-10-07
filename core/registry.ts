@@ -200,7 +200,7 @@ export class Registry {
         unavailable: a.unavailable ?? null,
         mount: a.manifest.mount ?? null,
         needs: a.manifest.needs ?? {},
-        tools: a.tools.length,
+        tools: a.server ? [...this.core.catalogue.tools.values()].filter((t) => t.app === a.manifest.id).length : a.tools.length,
         screens: on.has(a.manifest.id) && a.manifest.screens ? `/apps/${a.manifest.id}/screens.js` : null,
       }))
       .sort((x, y) => x.order - y.order);

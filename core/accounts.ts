@@ -14,8 +14,8 @@ export class Users {
   async byEmail(email: string) { return (await this.core.db.get<User>('SELECT * FROM users WHERE email = ?', [email.toLowerCase()])) ?? null; }
   async byGithub(login: string) { return (await this.core.db.get<User>('SELECT * FROM users WHERE github_login = ?', [login.toLowerCase()])) ?? null; }
 
-  async create(u: { name: string; email?: string | null; github_login?: string | null; github_id?: string | null; avatar_url?: string | null }) {
-    const user = { id: id('u'), name: u.name, email: u.email?.toLowerCase() ?? null, github_login: u.github_login?.toLowerCase() ?? null, avatar_url: u.avatar_url ?? null };
+  async create(u: { id?: string; name: string; email?: string | null; github_login?: string | null; github_id?: string | null; avatar_url?: string | null }) {
+    const user = { id: u.id ?? id('u'), name: u.name, email: u.email?.toLowerCase() ?? null, github_login: u.github_login?.toLowerCase() ?? null, avatar_url: u.avatar_url ?? null };
     await this.core.db.run('INSERT INTO users (id, name, email, github_login, github_id, avatar_url, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', [user.id, user.name, user.email, user.github_login, u.github_id ?? null, user.avatar_url, now()]);
     return user as User;
   }
@@ -45,11 +45,11 @@ export class Teams {
   async bySlug(slug: string) { return (await this.core.db.get<Team>('SELECT id, slug, name, github_org FROM teams WHERE slug = ?', [slug])) ?? null; }
   async role(teamId: string, userId: string) { return ((await this.core.db.get<{ role: Role }>('SELECT role FROM members WHERE team_id = ? AND user_id = ?', [teamId, userId]))?.role ?? null) as Role | null; }
 
-  async create(name: string, ownerId: string, opts: { slug?: string; githubOrg?: string | null } = {}) {
+  async create(name: string, ownerId: string, opts: { slug?: string; githubOrg?: string | null; id?: string } = {}) {
     const base = slugify(opts.slug || name) || 'team';
     let slug = base;
     for (let n = 2; await this.bySlug(slug); n++) slug = `${base}-${n}`;
-    const team = { id: id('t'), slug, name };
+    const team = { id: opts.id ?? id('t'), slug, name };
     await this.core.db.tx(async (db) => {
       await db.run('INSERT INTO teams (id, slug, name, github_org, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?)', [team.id, slug, name, opts.githubOrg ?? null, ownerId, now()]);
       await db.run('INSERT INTO members (team_id, user_id, role, joined_at) VALUES (?, ?, ?, ?)', [team.id, ownerId, 'owner', now()]);
