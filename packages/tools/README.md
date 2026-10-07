@@ -10,6 +10,15 @@ Every action a person can take in a wOS app is written once, as a **tool**. The 
 
 Screens never call private routes. A build test fails when a button, menu item or form has no `data-tool="<name>"` naming a tool in the catalogue (see `docs/PARITY.md`).
 
+## Names inside and outside the server
+
+| Where | Form | Example |
+|---|---|---|
+| `tools.json`, handlers, `data-tool`, events, audit log | dotted, the canonical name | `chat.post_message` |
+| MCP `tools/list`, OpenAPI paths and operationIds, model APIs | **wire name**: the first dot becomes an underscore | `chat_post_message` |
+
+Anthropic's and OpenAI's APIs accept only `[A-Za-z0-9_-]{1,64}` in tool names, so every name that leaves the server is the wire name. App ids never contain underscores, so `chat_post_message` always maps back to `chat.post_message`. Callers may send either form: `/api/tools/chat_post_message` and `/api/tools/chat.post_message` reach the same handler, and MCP `tools/call` accepts both. Helpers: `toWire(name)` and `fromWire(wire)`. The checker fails a tool whose wire name would be over 64 characters.
+
 ## The file
 
 Each app ships `tools.json` next to its `wos-app.json`. Schema: [`tools.schema.json`](tools.schema.json). A full example: [`example.tools.json`](example.tools.json).
@@ -79,7 +88,7 @@ Errors always have a plain-language `message` a person can act on.
 
 ## Over MCP
 
-`tools/list` returns every tool of every app that is on for the caller's team, limited to the caller's scopes. Each entry has `name`, `title`, `description`, `inputSchema`, `outputSchema` and annotations (`readOnlyHint` for `read`, `destructiveHint` for `delete`). `tools/call` returns the result as JSON text plus `structuredContent`.
+`tools/list` returns every tool of every app that is on for the caller's team, limited to the caller's scopes. Each entry has `name` (the wire name, `chat_post_message`), `title`, `description`, `inputSchema`, `outputSchema` and annotations (`readOnlyHint` for `read`, `destructiveHint` for `delete`). `tools/call` returns the result as JSON text plus `structuredContent`.
 
 ## In a screen
 
@@ -92,7 +101,7 @@ Every interactive element names the tool it calls. Elements that only move aroun
 ## Helpers in this package
 
 ```js
-import { checkCatalogue, checkTool, toMcp, toOpenApi } from '@wos/tools';
+import { checkCatalogue, checkTool, toMcp, toOpenApi, toWire, fromWire } from '@wos/tools';
 ```
 
 `index.d.ts` has the `ToolSpec` and `ToolCatalogue` types. The package has no dependencies; copy it into your repo if you prefer that to installing from GitHub.

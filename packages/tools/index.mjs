@@ -6,6 +6,13 @@ export const CONFIRMS = ['none', 'human'];
 export const NAME = /^[a-z][a-z0-9-]{1,30}\.[a-z][a-z0-9_]{1,62}$/;
 export const APP_ID = /^[a-z][a-z0-9-]{1,30}$/;
 export const EVENT = /^[a-z][a-z0-9-]*\.[a-z0-9_.]+$/;
+/** The name a tool has outside the server (MCP, OpenAPI, model APIs): app_verb_noun. Anthropic and OpenAI accept
+ *  only [A-Za-z0-9_-] in tool names, so the dot becomes an underscore. App ids never contain underscores, so the
+ *  first underscore always splits the app from the verb. tools.json and data-tool keep the dotted name. */
+export const toWire = (name) => String(name).replace('.', '_');
+export const fromWire = (wire) => (String(wire).includes('.') ? String(wire) : String(wire).replace('_', '.'));
+export const WIRE = /^[a-zA-Z0-9_-]{1,64}$/;
+
 const KEYS = new Set(['name', 'title', 'description', 'input', 'output', 'scope', 'confirm', 'emits', 'test', 'public', 'hidden']);
 
 /** Problems with one tool, as plain sentences. Empty means it is fine. */
@@ -16,6 +23,7 @@ export function checkTool(t, app) {
   for (const k of Object.keys(t)) if (!KEYS.has(k)) out.push(`${where}: unknown field "${k}".`);
   if (typeof t.name !== 'string' || !NAME.test(t.name)) out.push(`${where}: name must look like app.verb_noun.`);
   else if (app && !t.name.startsWith(`${app}.`)) out.push(`${where}: name must start with "${app}.".`);
+  else if (!WIRE.test(toWire(t.name))) out.push(`${where}: its wire name ${toWire(t.name)} must be 64 characters or fewer.`);
   if (typeof t.title !== 'string' || t.title.length < 2 || t.title.length > 60) out.push(`${where}: title must be 2 to 60 characters.`);
   if (typeof t.description !== 'string' || t.description.length < 20) out.push(`${where}: description must say in plain words what it does (20 characters or more).`);
   if (!t.input || t.input.type !== 'object') out.push(`${where}: input must be a JSON Schema with "type": "object".`);
@@ -46,7 +54,7 @@ export function checkCatalogue(doc) {
 /** The MCP tools/list entry for a tool. */
 export function toMcp(t) {
   return {
-    name: t.name,
+    name: toWire(t.name),
     title: t.title,
     description: t.confirm === 'human' ? `${t.description} A person must approve this before it runs.` : t.description,
     inputSchema: t.input,
@@ -59,9 +67,9 @@ export function toMcp(t) {
 export function toOpenApi(tools, { title = 'wOS', version = '0.1.0', server } = {}) {
   const paths = {};
   for (const t of tools) {
-    paths[`/api/tools/${t.name}`] = {
+    paths[`/api/tools/${toWire(t.name)}`] = {
       post: {
-        operationId: t.name.replace('.', '__'),
+        operationId: toWire(t.name),
         summary: t.title,
         description: t.description.slice(0, 300),
         'x-openai-isConsequential': t.scope !== 'read' || t.confirm === 'human',

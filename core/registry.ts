@@ -106,7 +106,31 @@ export class Registry {
         publish: (teamId: string, name: string, data?: unknown, actor?: any) => core.events.publish(teamId, name, data, actor),
         on: (name: string, fn: any) => core.events.on(name, fn),
       },
-      alerts: { raise: (x: any) => core.alerts.raise({ ...x, source: a.manifest.id }) },
+      alerts: {
+        raise: (x: any) => core.alerts.raise({ ...x, source: a.manifest.id }),
+        /** An answer that arrived through this app (a reply to an alert email): same effect as the inbox. */
+        answer: (alertId: string, personId: string, answer: string | number, via = 'email') => core.alerts.answer(alertId, personId, answer, via),
+      },
+      /** Call any tool as a team member, outside a request: run-by-email, schedules, webhooks. Uses that member's
+       *  role scopes (optionally fewer), writes the audit log with via, and treats the call as untrusted:
+       *  confirm: human tools wait for the person's yes in the inbox. Throws no_tool when the app is off. */
+      callAs: async (who: { teamId: string; personId: string; via?: 'email' | 'system'; label?: string; scopes?: string[]; trusted?: boolean }, name: string, input: unknown = {}) => {
+        const user = await core.users.get(who.personId);
+        const team = await core.teams.get(who.teamId);
+        const role = user && team ? await core.teams.role(team.id, user.id) : null;
+        if (!user || !team || !role) throw new Error('That person is not on that team.');
+        const { ROLE_SCOPES } = await import('./types.ts');
+        const scopes = ROLE_SCOPES[role].filter((s) => !who.scopes || who.scopes.includes(s));
+        const r = await core.catalogue.call(name, input, { actor: { kind: 'person', id: user.id, name: who.label ?? `${user.name} (${who.via ?? 'system'})` }, user, team: { id: team.id, slug: team.slug, name: team.name }, role, scopes, untrusted: !who.trusted }, who.via ?? 'system');
+        return r.pending ? { pending: r.pending } : r.result;
+      },
+      /** Team membership, the one source of truth. Apps read it instead of keeping their own list. */
+      people: {
+        members: (teamId: string) => core.teams.members(teamId),
+        byEmail: async (teamId: string, email: string) => (await core.teams.members(teamId)).find((m: any) => m.email && m.email.toLowerCase() === String(email).toLowerCase()) ?? null,
+        teamsOf: async (email: string) => { const u = await core.users.byEmail(String(email)); return u ? core.users.teamsOf(u.id) : []; },
+        teamsWithApp: async () => (await core.db.query<any>('SELECT t.id, t.slug, t.name FROM team_apps a JOIN teams t ON t.id = a.team_id WHERE a.app_id = ? AND a.enabled = 1', [a.manifest.id])),
+      },
       env: (name: string) => (allowed.has(name) || a.builtin ? core.env[name] : undefined),
       dataDir,
       publicUrl: core.publicUrl,

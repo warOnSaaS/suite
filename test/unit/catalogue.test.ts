@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { checkTool } from '../../packages/tools/index.mjs';
+import { checkTool, toWire } from '../../packages/tools/index.mjs';
 import { makeCore, person, serveCore, tokenFor } from './helpers.ts';
 
 const EXAMPLE = path.resolve('packages/manifest/example');
@@ -36,7 +36,8 @@ test('every tool is complete, tested and reachable over MCP', async () => {
   const token = await tokenFor(core, sam.user.id, sam.team.id);
   const r = await fetch(`${s.url}/mcp`, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) });
   const listed = new Set(((await r.json()) as any).result.tools.map((t: any) => t.name));
-  const missing = tools.filter((t) => !listed.has(t.name)).map((t) => t.name);
+  const missing = tools.filter((t) => !listed.has(toWire(t.name))).map((t) => t.name);
+  assert.ok([...listed].every((n: any) => /^[a-zA-Z0-9_-]{1,64}$/.test(n)), 'every MCP name is valid for the Anthropic and OpenAI APIs');
   assert.deepEqual(missing, [], 'every tool is reachable over MCP');
   const open = await (await fetch(`${s.url}/api/openapi.json`, { headers: { authorization: `Bearer ${token}` } })).json() as any;
   assert.equal(Object.keys(open.paths).length, tools.length, 'and over REST');

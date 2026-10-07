@@ -4,7 +4,7 @@ import type { Core } from './core.ts';
 import type { CoreTool, Caller } from './types.ts';
 import type { Msg, Part, ModelTool } from './models/index.ts';
 import { textOf } from './models/index.ts';
-import { id, now, parse, fail, WosError } from './util.ts';
+import { id, now, tick, parse, fail, WosError } from './util.ts';
 
 const S = (props: Record<string, unknown> = {}, required: string[] = []) => ({ type: 'object' as const, properties: props, required, additionalProperties: false });
 
@@ -101,7 +101,7 @@ async function send(core: Core, call: any, a: { conversation_id?: string; text: 
   }
   const store = async (role: 'user' | 'assistant', content: Part[]) => {
     const mid = id('cm');
-    await core.db.run('INSERT INTO conversation_messages (id, conversation_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)', [mid, conv.id, role, JSON.stringify(content), now()]);
+    await core.db.run('INSERT INTO conversation_messages (id, conversation_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)', [mid, conv.id, role, JSON.stringify(content), tick()]);
     return mid;
   };
   await store('user', [{ type: 'text', text: a.text }]);

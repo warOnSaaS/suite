@@ -14,7 +14,9 @@ export async function migrate(db: Database, scope: string, dir: string, log: (s:
     if (done.has(id)) continue;
     const sql = fs.readFileSync(path.join(dir, file), 'utf8');
     await db.tx(async (t) => {
-      for (const stmt of splitSql(sql)) await t.run(stmt);
+      // The whole file in one call (SQLite exec, Postgres simple query), so triggers, BEGIN...END blocks and
+      // $$-quoted function bodies arrive intact.
+      await t.run(sql);
       await t.run('INSERT INTO wos_migrations (scope, id, applied_at) VALUES (?, ?, ?)', [scope, id, new Date().toISOString()]);
     });
     applied.push(id);
@@ -24,6 +26,7 @@ export async function migrate(db: Database, scope: string, dir: string, log: (s:
 }
 
 // Split on semicolons outside quotes and comments. Enough for the plain DDL migrations use.
+// Kept for tools that need statements one by one; migrations run whole files.
 export function splitSql(sql: string) {
   const out: string[] = [];
   let cur = '';

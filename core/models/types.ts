@@ -1,5 +1,5 @@
 // One shape for every model provider. Tool names use app.verb_noun inside wOS; providers only accept
-// [A-Za-z0-9_-], so the adapters send app__verb_noun and map back.
+// [A-Za-z0-9_-], so the adapters send app_verb_noun (the wire name) and map back.
 
 export type Part =
   | { type: 'text'; text: string }
@@ -35,6 +35,5 @@ export interface Adapter {
   listModels(): Promise<{ id: string; name: string; tools: boolean }[]>;
 }
 
-export const toWire = (name: string) => name.replace('.', '__');
-export const fromWire = (name: string) => name.replace('__', '.');
+export { toWire, fromWire } from '../../packages/tools/index.mjs';
 export const textOf = (parts: Part[]) => parts.filter((p): p is Extract<Part, { type: 'text' }> => p.type === 'text').map((p) => p.text).join('');

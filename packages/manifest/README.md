@@ -108,6 +108,10 @@ export default function register(ctx) {
     start() {}, stop() {},
     onEnable(team) {}, onDisable(team) {},
     async exportTeam(team) { return { channels: [...], messages: [...] }; },
+    // only for apps that still serve their own pages (needs "mount" in wos-app.json): served at /m/<id>/
+    mount(req, res, url, call) {},
+    // only the Email app: the core sends alert emails through it when Email is on for the team
+    alertTransport: { async send({ alertId, teamId, personId, to, title, body, options, link, answerLinks }) {} },
   };
 }
 ```
@@ -118,6 +122,9 @@ export default function register(ctx) {
 | `ctx.events` | `publish(teamId, name, data)` and `on('email.message.received', fn)`; `on('chat.*', fn)` works too. |
 | `ctx.alerts.raise(...)` | Put a question, approval or notice in a person's inbox and out on their alert channels (in app, browser, phone, email). |
 | `ctx.env(name)` | Settings from the environment that the manifest lists in `needs.env`. |
+| `ctx.alerts.answer(alertId, personId, answer, via)` | An answer that reached your app (a reply to an alert email). Same effect as the inbox. |
+| `ctx.callAs({ teamId, personId, via, label?, scopes?, trusted? }, tool, input)` | Call any tool as a team member outside a request: run by email, schedules, webhooks. The member's role scopes (or fewer), audited with `via`, and untrusted by default, so `confirm: human` tools wait for the person's yes. Returns `{ pending }` while waiting. |
+| `ctx.people.members(teamId)`, `byEmail(teamId, email)`, `teamsOf(email)`, `teamsWithApp()` | Team membership, the one source of truth. Do not keep your own list; listen to `team.member.joined`, `team.member.left` and `team.member.role_changed` if you cache. |
 | `ctx.dataDir`, `ctx.publicUrl`, `ctx.log` | A folder for files, the public address, a logger. |
 
 | `call` (second argument of every handler) | |
@@ -147,13 +154,14 @@ export default {
     // draw into el; every button has data-tool="<tool name>"
     // ctx.callTool(name, input)  -> POST /api/tools/<name>
     // ctx.on(event, fn)          -> live events for this team
-    // ctx.path, ctx.navigate(p)  -> the path inside the app
+    // ctx.path, ctx.navigate(p)  -> the path inside the app (see below)
     // ctx.me, ctx.team, ctx.toast(msg)
     return () => { /* clean up */ };
   },
 };
 ```
 
+- Navigation: `ctx.navigate('/channels/ch_general')` changes the address bar to `/a/<id>/channels/ch_general` and the suite then calls `update(path)` on the object `mount` returned. The screen is not remounted, so return `{ unmount, update }` if your app has more than one view. The back button calls `update` too. `ctx.path` is the path at mount time.
 - Style only with the ui-design kit classes (`ui-page`, `ui-ph`, `ui-btn`, `ui-dtable`, `ui-dialog` and the rest). The shell already loads the kit. Anything missing goes into the kit, not into your app.
 - Sentence case. Works at 390px and 1440px wide.
 - `fetch` only to `/api/tools/*`, `/files/*` and `/media/*`. The suite's lint fails the build otherwise.

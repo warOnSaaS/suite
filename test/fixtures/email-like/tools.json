@@ -1,0 +1,3 @@
+{ "app": "email", "version": 1, "tools": [
+  { "name": "email.run_command", "title": "Run a command", "description": "Stand-in: run another app's tool as the sender of a command email.", "input": { "type": "object", "properties": { "from": { "type": "string" }, "tool": { "type": "string" }, "input": { "type": "object" } }, "required": ["from", "tool"] }, "output": { "type": "object" }, "scope": "write", "confirm": "none", "test": "test/unit/service.test.ts" }
+] }

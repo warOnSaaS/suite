@@ -57,6 +57,18 @@ export class Alerts {
     if (!u?.email) return;
     const opts = parse<string[]>(a.options, []);
     const link = (i: number | null) => `${this.core.publicUrl}/alerts/answer?t=${encodeURIComponent(sign({ k: 'answer', a: a.id, o: i, u: a.person_id }, 7 * 86400))}`;
+    // When the Email app is on for this team and offers a transport, alerts go out through it (threaded, with
+    // reply tokens it reads back with ctx.alerts.answer). Otherwise the core sends plain mail with signed links.
+    const transport = (await this.core.registry.isOn(a.team_id, 'email')) ? (this.core.registry.apps.get('email')?.server as any)?.alertTransport : null;
+    if (transport?.send) {
+      try {
+        await transport.send({ alertId: a.id, teamId: a.team_id, personId: a.person_id, to: u.email, title: a.title, body: a.body ?? '', options: opts, kind: a.kind, link: `${this.core.publicUrl}/inbox?alert=${a.id}`, answerLinks: opts.map((_, i) => link(i)) });
+        await this.core.db.run('UPDATE alerts SET emailed_at = ? WHERE id = ?', [now(), a.id]);
+        return;
+      } catch (e: any) {
+        this.core.log.warn(`Email app could not send alert ${a.id}: ${e.message}; using plain mail`);
+      }
+    }
     const lines = [a.body ?? '', '', ...opts.map((o, i) => `${o}: ${link(i)}`), opts.length ? '' : `Open: ${this.core.publicUrl}/inbox?alert=${a.id}`, '', 'Each link asks you to confirm before anything happens.'];
     await this.core.mail.send({ teamId: a.team_id, to: u.email, subject: `[wOS] ${a.title}`, text: lines.join('\n').trim() });
     await this.core.db.run('UPDATE alerts SET emailed_at = ? WHERE id = ?', [now(), a.id]);

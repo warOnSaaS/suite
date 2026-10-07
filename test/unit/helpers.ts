@@ -64,7 +64,7 @@ export async function fakeModelServer(script: (body: any) => { text?: string; to
     res.writeHead(200, { 'content-type': 'text/event-stream' });
     const send = (o: unknown) => res.write(`data: ${JSON.stringify(o)}\n\n`);
     if (step.text) for (const w of step.text.split(' ')) send({ choices: [{ delta: { content: `${w} ` } }] });
-    if (step.tool) send({ choices: [{ delta: { tool_calls: [{ index: 0, id: `call_${seen.length}`, function: { name: step.tool.name.replace('.', '__'), arguments: JSON.stringify(step.tool.args) } }] } }] });
+    if (step.tool) send({ choices: [{ delta: { tool_calls: [{ index: 0, id: `call_${seen.length}`, function: { name: step.tool.name.replace('.', '_'), arguments: JSON.stringify(step.tool.args) } }] } }] });
     send({ choices: [{ delta: {}, finish_reason: step.tool ? 'tool_calls' : 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 5 } });
     res.end('data: [DONE]\n\n');
   });

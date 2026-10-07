@@ -1,0 +1,9 @@
+{
+  "id": "email",
+  "name": "Email",
+  "description": "A stand-in for the Email app, for tests of the core's service calls and alert transport.",
+  "version": "0.0.1",
+  "requires": { "core": ">=0.1" },
+  "tools": "./tools.json",
+  "server": "./server.mjs"
+}

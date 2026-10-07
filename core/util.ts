@@ -1,6 +1,9 @@
 import crypto from 'node:crypto';
 
 export const now = () => new Date().toISOString();
+let last = 0;
+/** A time that never repeats or goes back in this process, for rows ordered by time (messages, run events). */
+export const tick = () => { last = Math.max(Date.now(), last + 1); return new Date(last).toISOString(); };
 export const id = (prefix: string) => `${prefix}_${crypto.randomBytes(9).toString('base64url').replace(/[-_]/g, '').slice(0, 10).toLowerCase() || crypto.randomUUID().slice(0, 8)}`;
 export const token = (bytes = 32) => crypto.randomBytes(bytes).toString('base64url');
 export const sha256 = (s: string) => crypto.createHash('sha256').update(s).digest('base64url');

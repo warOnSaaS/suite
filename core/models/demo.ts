@@ -83,7 +83,7 @@ export function demoAdapter(): Adapter {
     kind: 'demo',
     async listModels() { return [{ id: 'demo-scripted', name: 'Demo model (a script, not AI)', tools: true }]; },
     async chat(req) {
-      return reply(req.system.includes('agents__set_plan') ? agentTurn(req) : chatTurn(req), req);
+      return reply(req.system.includes('agents_set_plan') ? agentTurn(req) : chatTurn(req), req);
     },
   };
 }

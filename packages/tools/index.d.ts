@@ -34,6 +34,11 @@ export const CONFIRMS: Confirm[];
 export const NAME: RegExp;
 export const APP_ID: RegExp;
 export const EVENT: RegExp;
+export const WIRE: RegExp;
+/** chat.post_message -> chat_post_message: the name outside the server (MCP, OpenAPI, model APIs). */
+export function toWire(name: string): string;
+/** chat_post_message (or chat.post_message) -> chat.post_message */
+export function fromWire(wire: string): string;
 export function checkTool(t: unknown, app?: string): string[];
 export function checkCatalogue(doc: unknown): string[];
 export function toMcp(t: ToolSpec): Record<string, unknown>;

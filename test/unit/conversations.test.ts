@@ -16,7 +16,7 @@ test('a model uses tools as the person and answers; history is kept', async () =
   assert.equal(r.message.text.trim(), 'You have 1 member.');
   assert.deepEqual(r.message.tools, [{ name: 'team.get', error: false }]);
   assert.ok(deltas.length > 2, 'words streamed');
-  assert.ok(fake.seen[0].body.tools.some((t: any) => t.function.name === 'team__get'), 'tools offered with safe names');
+  assert.ok(fake.seen[0].body.tools.some((t: any) => t.function.name === 'team_get'), 'tools offered with safe names');
   const list = await sam.call('conversations.list');
   assert.equal(list.conversations[0].title, 'How big is my team?');
   const conv = await sam.call('conversations.get', { conversation_id: r.conversation_id });

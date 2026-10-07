@@ -5,7 +5,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { makeCore, person, fakeModelServer } from './helpers.ts';
 
-const pump = async (core: any, teamId: string, n = 12) => { for (let i = 0; i < n; i++) await core.agentsPump(teamId); };
+// Move runs forward; a pump already going (started by an answer) is waited for, not skipped.
+const pump = async (core: any, teamId: string, n = 12) => { for (let i = 0; i < n * 3; i++) { await core.agentsPump(teamId); await new Promise((r) => setTimeout(r, 5)); } };
 
 test('a run makes a plan, shows real progress, asks the person, and finishes', async () => {
   const core = await makeCore();

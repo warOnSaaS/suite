@@ -2,7 +2,7 @@
 // programs (REST), agents (MCP and wOS's own runtime) and email. Checks, in order: the tool exists and its
 // app is on for the team; sign-in; scope; input schema; human approval for agents; then the handler runs and
 // the call is written to the audit log.
-import { checkTool } from '../packages/tools/index.mjs';
+import { checkTool, fromWire } from '../packages/tools/index.mjs';
 import type { Core } from './core.ts';
 import type { Caller, ToolDef, Via, CoreTool, ToolSpec, Handler } from './types.ts';
 import { validate } from './validate.ts';
@@ -47,6 +47,7 @@ export class Catalogue {
   }
 
   async call(name: string, input: unknown, caller: Caller | null, via: Via): Promise<CallResult> {
+    name = fromWire(name);
     const t = this.tools.get(name);
     const started = Date.now();
     if (!t) throw new WosError('no_tool', `There is no tool called ${name}.`, 404);
@@ -59,7 +60,7 @@ export class Catalogue {
     const v = validate(t.input, input ?? {});
     if (!v.ok) throw new WosError('invalid_input', v.error, 400);
 
-    if (t.confirm === 'human' && caller?.actor.kind === 'agent' && !caller.approved) {
+    if (t.confirm === 'human' && (caller?.actor.kind === 'agent' || caller?.untrusted) && !caller?.approved) {
       const pending = await this.requestApproval(t, v.value, caller);
       await this.audit(t, caller, via, v.value, 'pending', null, started);
       return { pending };

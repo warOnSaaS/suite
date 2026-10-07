@@ -228,21 +228,23 @@ export function teamTools(core: Core): CoreTool[] {
       handler: async ({ invite_id }, call: any) => { const r = await core.db.run('UPDATE invites SET revoked_at = ? WHERE id = ? AND team_id = ?', [now(), invite_id, call.team.id]); return { revoked: r.changes > 0 }; },
     },
     {
-      spec: { name: 'team.set_role', title: 'Change role', description: 'Make a member an admin, a member or a guest (guests can only look). The owner cannot be changed here.', input: S({ user_id: str('From team.get'), role: roleEnum }, ['user_id', 'role']), scope: 'admin', confirm: 'none', test: 'test/unit/core.test.ts' },
+      spec: { name: 'team.set_role', title: 'Change role', description: 'Make a member an admin, a member or a guest (guests can only look). The owner cannot be changed here.', input: S({ user_id: str('From team.get'), role: roleEnum }, ['user_id', 'role']), scope: 'admin', confirm: 'none', emits: ['team.member.role_changed'], test: 'test/unit/core.test.ts' },
       handler: async ({ user_id, role }, call: any) => {
         const cur = await core.teams.role(call.team.id, user_id);
         if (!cur) fail('not_found', 'That person is not on this team.');
         if (cur === 'owner') fail('owner', 'The owner keeps the owner role.');
         await core.db.run('UPDATE members SET role = ? WHERE team_id = ? AND user_id = ?', [role, call.team.id, user_id]);
+        call.emit('team.member.role_changed', { user_id, role });
         return { user_id, role };
       },
     },
     {
-      spec: { name: 'team.remove_member', title: 'Remove from team', description: 'Take a person off the team. Their sessions on this team stop working. Their work stays.', input: S({ user_id: str('From team.get') }, ['user_id']), scope: 'admin', confirm: 'human', test: 'test/unit/core.test.ts' },
+      spec: { name: 'team.remove_member', title: 'Remove from team', description: 'Take a person off the team. Their sessions on this team stop working. Their work stays.', input: S({ user_id: str('From team.get') }, ['user_id']), scope: 'admin', confirm: 'human', emits: ['team.member.left'], test: 'test/unit/core.test.ts' },
       handler: async ({ user_id }, call: any) => {
         if ((await core.teams.role(call.team.id, user_id)) === 'owner') fail('owner', 'The owner cannot be removed.');
         await core.db.run('DELETE FROM members WHERE team_id = ? AND user_id = ?', [call.team.id, user_id]);
         await core.db.run('UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND team_id = ? AND revoked_at IS NULL', [now(), user_id, call.team.id]);
+        call.emit('team.member.left', { user_id });
         return { removed: true };
       },
     },

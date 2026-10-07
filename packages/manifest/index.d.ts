@@ -75,6 +75,20 @@ export interface AppContext {
   alerts: {
     /** Ask a person something. Shows in their inbox and goes out on their alert channels. */
     raise(a: { teamId: string; personId: string; kind: 'approval' | 'question' | 'blocked' | 'done' | 'failed'; title: string; body?: string; options?: string[]; ref?: unknown }): Promise<{ id: string }>;
+    /** An answer that reached this app (a reply to an alert email). Same effect as answering in the inbox. */
+    answer(alertId: string, personId: string, answer: string | number, via?: string): Promise<unknown>;
+  };
+  /** Call any tool as a team member outside a request (run by email, schedules, webhooks). Uses the member's role
+   *  scopes (or fewer), is audited with `via`, and is untrusted unless `trusted`: confirm: human tools wait for the
+   *  person's yes. Returns the result, or { pending } while waiting. Throws (code no_tool) when that app is off. */
+  callAs(who: { teamId: string; personId: string; via?: 'email' | 'system'; label?: string; scopes?: Scope[]; trusted?: boolean }, name: string, input?: unknown): Promise<unknown>;
+  /** Team membership: the one source of truth. Listen to team.member.joined, team.member.left and team.member.role_changed. */
+  people: {
+    members(teamId: string): Promise<{ id: string; name: string; email: string | null; github_login: string | null; role: 'owner' | 'admin' | 'member' | 'guest' }[]>;
+    byEmail(teamId: string, email: string): Promise<{ id: string; name: string; email: string | null; role: string } | null>;
+    teamsOf(email: string): Promise<Team[]>;
+    /** Teams that have this app on. */
+    teamsWithApp(): Promise<Team[]>;
   };
   /** Read environment settings the manifest lists in needs.env. */
   env(name: string): string | undefined;
@@ -96,6 +110,12 @@ export interface AppServer {
   /** Called when a team turns the app on or off. Do not delete data here. */
   onEnable?(team: Team): void | Promise<void>;
   onDisable?(team: Team): void | Promise<void>;
+  /** Your own pages, served by the suite under /m/<id>/ for members of a team with the app on (needs "mount" in
+   *  wos-app.json). Use only until a screen part exists. */
+  mount?(req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, url: URL, call: Call | null): unknown;
+  /** The Email app offers this: the core sends alert emails through it when Email is on for the team.
+   *  Replies come back through ctx.alerts.answer. */
+  alertTransport?: { send(a: { alertId: string; teamId: string; personId: string; to: string; title: string; body: string; options: string[]; kind: string; link: string; answerLinks: string[] }): Promise<void> };
   /** Everything this team has in the app, for "export everything". */
   exportTeam?(team: Team): Promise<Record<string, unknown>>;
 }
@@ -109,8 +129,10 @@ export interface ScreenContext {
   callTool<T = any>(name: string, input?: unknown): Promise<T>;
   /** Live events for this team over the suite's socket. Returns an unsubscribe function. */
   on(name: string, fn: (e: WosEvent) => void): () => void;
-  /** The path inside the app, for example "/" or "/channels/ch_general". */
+  /** The path inside the app at mount time, for example "/" or "/channels/ch_general". */
   path: string;
+  /** Go to a path inside the app. The suite changes the address bar to /a/<id><path> (/agents<path> for Agents)
+   *  and then calls update(path) on what mount() returned. The screen is not remounted. */
   navigate(path: string): void;
   me: { id: string; name: string; email?: string; github?: string };
   team: Team;

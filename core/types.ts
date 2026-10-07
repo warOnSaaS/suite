@@ -23,6 +23,9 @@ export interface Caller {
   sessionId?: string;
   /** Set when a person approved this exact call. */
   approved?: boolean;
+  /** A person acting through an outside channel (an email command): confirm: human tools still wait for a
+   *  click on a signed link or the inbox, as for agents. */
+  untrusted?: boolean;
   /** For agents: the run the call belongs to. */
   runId?: string;
 }

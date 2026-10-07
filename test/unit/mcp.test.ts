@@ -40,8 +40,8 @@ test('OAuth for MCP apps: discovery, registration, consent, PKCE, refresh rotati
   assert.equal((await tok({ grant_type: 'authorization_code', code, client_id: reg.client_id, code_verifier: verifier })).error, 'invalid_grant', 'a code works once');
   const list = await mcp(s.url, t1.access_token, 'tools/list');
   const names = list.body.result.tools.map((t: any) => t.name);
-  assert.ok(names.includes('agents.start'));
-  assert.ok(!names.includes('apps.enable'), 'no admin tools without the admin scope');
+  assert.ok(names.includes('agents_start'));
+  assert.ok(!names.includes('apps_enable'), 'no admin tools without the admin scope');
   const t2 = await tok({ grant_type: 'refresh_token', refresh_token: t1.refresh_token });
   assert.match(t2.access_token, /^wos_/);
   assert.equal((await mcp(s.url, t1.access_token, 'ping')).status, 401, 'the old access token stops');
@@ -66,12 +66,12 @@ test('agent run test: using only MCP, an agent turns an app off and on, invites 
   };
   const init = await mcp(s.url, token, 'initialize', { protocolVersion: '2025-06-18' });
   assert.equal(init.body.result.serverInfo.name, 'wOS');
-  await call('apps.enable', { app: 'chat' });
+  await call('apps_enable', { app: 'chat' });
   let tools = (await mcp(s.url, token, 'tools/list')).body.result.tools.map((t: any) => t.name);
-  assert.ok(tools.includes('chat.post_message'));
+  assert.ok(tools.includes('chat_post_message'));
   await call('apps.disable', { app: 'chat' });
   tools = (await mcp(s.url, token, 'tools/list')).body.result.tools.map((t: any) => t.name);
-  assert.ok(!tools.includes('chat.post_message'), 'off: gone from MCP');
+  assert.ok(!tools.includes('chat_post_message'), 'off: gone from MCP');
   await assert.rejects(call('chat.post_message', { channel_id: 'a', text: 'b' }), /turned off/);
   await call('apps.enable', { app: 'chat' });
   const inv = await call('team.invite', { email: 'riley@acme-dental.example' });

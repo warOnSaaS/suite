@@ -16,7 +16,8 @@ export type NodeHandler = (req: IncomingMessage, res: ServerResponse) => unknown
 /** First folder that holds the app: an env override, vendor/<name>, node_modules/<name>, or a sibling checkout. */
 export function findApp(envDir: string | undefined, names: string[], marker: string) {
   const tries = [envDir, ...names.flatMap((n) => [path.join(ROOT, 'vendor', n), path.join(ROOT, 'node_modules', n), path.join(ROOT, '..', n)])].filter(Boolean) as string[];
-  return tries.map((d) => path.resolve(d)).find((d) => fs.existsSync(path.join(d, marker))) ?? null;
+  // A folder counts only once its dependencies are installed (vendor/ copies get them at build time).
+  return tries.map((d) => path.resolve(d)).find((d) => fs.existsSync(path.join(d, marker)) && fs.existsSync(path.join(d, 'node_modules'))) ?? null;
 }
 
 export const importFrom = (dir: string, rel: string) => import(pathToFileURL(path.join(dir, rel)).href);
