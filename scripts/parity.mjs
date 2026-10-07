@@ -1,10 +1,10 @@
 // The parity harness (ROADMAP 3.2). Opens every screen of every enabled app in a real browser and checks that
 // every button, menu item, switch and form names a tool (data-tool) that is in the catalogue, or says it only
 // moves around the screen (data-tool="none" with data-why). Then turns apps off and checks that the browser
-// never downloads anything of theirs. Writes docs/PARITY-REPORT.md and fails the build on a gap in wOS's own
-// screens. Mounted apps (the CRM and board pages in frames) are measured and reported, not enforced, until their
-// native screens replace the frames (ROADMAP step 7).
-//   npm run build && npm run test:parity
+// never downloads anything of theirs. Writes docs/PARITY-REPORT.md and fails the build on a gap in any app that
+// is on: the shell, Agents, and every app package loaded (the CRM, the board, Chat, Email from vendor/ or
+// PARITY_APPS). An app still shown in a frame (mounted pages) is enforced too.
+//   node scripts/vendor.mjs && npm run build && npm run test:parity
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -13,7 +13,10 @@ import { chromium } from 'playwright';
 const root = path.resolve(new URL('..', import.meta.url).pathname);
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wos-parity-'));
 const port = 8700 + Math.floor(Math.random() * 200);
-Object.assign(process.env, { WOS_DEMO: '1', WOS_DATA_DIR: dataDir, WOS_APPS: process.env.PARITY_APPS || path.join(root, 'packages/manifest/example'), PORT: String(port), PUBLIC_URL: `http://localhost:${port}`, WOS_DEMO_PACE_MS: '300', WOS_SECRET_KEY: 'parity' });
+// The real app packages when they are vendored (node scripts/vendor.mjs), otherwise the example app.
+const vendored = ['chat', 'email', 'agent-kanban', 'crm'].map((d) => path.join(root, 'vendor', d)).filter((d) => fs.existsSync(path.join(d, 'wos-app.json')));
+const parityApps = process.env.PARITY_APPS || (vendored.length ? vendored.join(',') : path.join(root, 'packages/manifest/example'));
+Object.assign(process.env, { WOS_DEMO: '1', WOS_DATA_DIR: dataDir, WOS_APPS: parityApps, PORT: String(port), PUBLIC_URL: `http://localhost:${port}`, WOS_DEMO_PACE_MS: '300', WOS_SECRET_KEY: 'parity' });
 if (!fs.existsSync(path.join(root, 'dist/shell/index.html'))) { console.error('Build the shell first: npm run build'); process.exit(2); }
 const { serve } = await import('../apps/server/main.ts');
 const { core } = await serve(port);
@@ -61,6 +64,7 @@ const SCAN = () => {
 };
 
 const results = []; // { app, screen, el, verdict }
+const notes = [];
 function judge(app, screen, items, { mounted = false } = {}) {
   // Apps from other repos are measured and reported here; their own builds enforce them.
   const info = core.registry.apps.get(app);
@@ -79,7 +83,7 @@ function judge(app, screen, items, { mounted = false } = {}) {
 }
 
 async function scan(app, screen, path, opener) {
-  if (path) { await page.goto(base + path); await page.waitForTimeout(app === 'agents' ? 2500 : 900); }
+  if (path) { await page.goto(base + path); await page.waitForTimeout(app === 'agents' ? 2500 : app === 'shell' ? 900 : 1500); }
   if (opener) { await opener(); await page.waitForTimeout(400); }
   judge(app, screen, await page.evaluate(SCAN));
 }
@@ -100,10 +104,37 @@ await page.keyboard.press('Escape');
 await scan('agents', 'Start dialog', null, () => page.click('.ui-ph [data-tool="agents.start"]'));
 await page.keyboard.press('Escape');
 if (runs.runs[0]) await scan('agents', 'Run focus', `/agents/run/${runs.runs[0].id}`);
+// Every screen of every app package, not only its first one. Record pages are found by following the
+// first matching link on a list screen.
+const SUBSCREENS = {
+  chat: { lists: ['/', '/browse', '/activity', '/search', '/settings'], records: [['/', /\/c\/[^/]+$/]] },
+  email: { lists: ['/', '/inbox/fyi', '/drafts', '/approvals', '/settings'], records: [['/', /\/t\/[^/]+$/, 'optional: a demo team has no mailbox until one is connected']] },
+  crm: { lists: ['/contacts', '/leads', '/organizations', '/pipeline', '/deals', '/activities', '/import', '/settings', '/deleted', '/duplicates'], records: [['/contacts', /\/a\/crm\/contacts\/c_/], ['/organizations', /\/a\/crm\/organizations\/o_/], ['/deals', /\/a\/crm\/deals\/d_/]] },
+  board: { lists: ['/', '/alerts', '/settings'], records: [['/', /\/a\/board\/(.*\/)?(t|task|tasks)\/[^/]+$/], ['/', /\/a\/board\/(.*\/)?(i|idea|ideas)\/[^/]+$/]] },
+};
+const linkOn = async (path, re) => {
+  await page.goto(base + path);
+  await page.waitForTimeout(1500);
+  const hrefs = await page.evaluate(() => [...document.querySelectorAll('.wos-app-root a[href]')].map((a) => a.getAttribute('href')));
+  // Hash links (#/c/x) and app-relative links (/t/x) are addresses inside the app.
+  const app = path.split('/')[2];
+  const h = hrefs.find((x) => re.test(x));
+  if (!h) return null;
+  if (h.startsWith('#')) return `/a/${app}${h.slice(1)}`;
+  return h.startsWith(`/a/${app}`) ? h : `/a/${app}${h}`;
+};
 for (const [id, a] of core.registry.apps) {
   if (a.builtin || !a.manifest.screens) continue;
   await tool('apps.enable', { app: id }).catch(() => {});
-  await scan(id, `${a.manifest.name}${a.dir.endsWith('packages/manifest/example') ? ' (example app)' : ''}`, `/a/${id}`);
+  const label = `${a.manifest.name}${a.dir.endsWith('packages/manifest/example') ? ' (example app)' : ''}`;
+  const plan = SUBSCREENS[id] ?? { lists: ['/'], records: [] };
+  for (const sub of plan.lists) await scan(id, `${label} ${sub}`, `/a/${id}${sub === '/' ? '' : sub}`);
+  for (const [list, re, optional] of plan.records) {
+    const href = await linkOn(`/a/${id}${list === '/' ? '' : list}`, re);
+    if (href) await scan(id, `${label} ${href.replace(`/a/${id}`, '')}`, href);
+    else if (optional) notes.push(`${id}: no record to open from ${list} (${optional.replace(/^optional: /, '')}).`);
+    else results.push({ app: id, screen: `${label} record from ${list}`, tag: 'screen', text: `no record link matching ${re} on ${list}`, tool: null, verdict: 'no-record', mounted: false, external: true });
+  }
 }
 
 // Mounted apps: look inside their frames.
@@ -116,12 +147,12 @@ for (const [app, sub] of [['crm', '/a/crm'], ['board', '/a/board']]) {
   if (frame) judge(app, `${info.manifest.name} (mounted)`, await frame.evaluate(SCAN), { mounted: true });
 }
 
-// Off means never downloaded: turn the example app and the CRM off, walk every screen, watch the network.
-await tool('apps.disable', { app: 'chat' });
-await tool('apps.disable', { app: 'crm' });
+// Off means never downloaded: turn every app that is not part of wOS off, walk every screen, watch the network.
+const offApps = [...core.registry.apps.values()].filter((a) => !a.manifest.core).map((a) => a.manifest.id);
+for (const id of offApps) await tool('apps.disable', { app: id }).catch(() => {});
 requests.length = 0;
-for (const p of ['/', '/inbox', '/agents', '/settings/apps', '/settings/models', '/a/chat', '/a/crm']) { await page.goto(base + p); await page.waitForTimeout(700); }
-const offLeaks = requests.filter((r) => r.startsWith('/apps/chat/') || r.startsWith('/m/crm'));
+for (const p of ['/', '/inbox', '/agents', '/settings/apps', '/settings/models', ...offApps.map((id) => `/a/${id}`)]) { await page.goto(base + p); await page.waitForTimeout(700); }
+const offLeaks = requests.filter((r) => offApps.some((id) => r.startsWith(`/apps/${id}/`) || r.startsWith(`/m/${id}/`) || r === `/m/${id}`));
 // And the Agents screens are their own file, not fetched on the home screen.
 requests.length = 0;
 await page.goto(base + '/');
@@ -132,8 +163,8 @@ await browser.close();
 await core.stop();
 
 // ---------- report ----------
-const suite = results.filter((r) => !r.mounted && !r.external);
-const gaps = suite.filter((r) => ['missing', 'unknown-tool', 'none-without-why'].includes(r.verdict));
+const suite = results; // every app that is on is enforced, wherever its code lives
+const gaps = suite.filter((r) => ['missing', 'unknown-tool', 'none-without-why', 'no-record'].includes(r.verdict));
 const byApp = {};
 for (const r of results) {
   const a = (byApp[r.app] ??= { app: r.app, mounted: r.mounted, external: r.external, actions: 0, tools: 0, moves: 0, gaps: 0, used: new Set() });
@@ -148,29 +179,28 @@ const lines = [
   '',
   '| App | Screen actions | Covered by a tool | Gaps | Moves only (links, tabs, dialogs) | Enforced |',
   '|---|---|---|---|---|---|',
-  ...Object.values(byApp).map((a) => `| ${a.app} | ${a.actions} | ${a.tools} | ${a.gaps} | ${a.moves} | ${a.mounted ? 'no (mounted pages, measured only)' : a.external ? 'in its own repo (reported here)' : 'yes'} |`),
+  ...Object.values(byApp).map((a) => `| ${a.app} | ${a.actions} | ${a.tools} | ${a.gaps} | ${a.moves} | yes${a.mounted ? ' (mounted pages)' : a.external ? ' (app package)' : ''} |`),
   '',
   '## Tools with no screen (allowed: agents and programs use them)',
   '',
   ...Object.entries([...catalogue].reduce((m, n) => { const used = Object.values(byApp).some((a) => a.used.has(n)); if (!used) (m[appOf(n)] ??= []).push(n); return m; }, {})).map(([app, names]) => `- **${app}**: ${names.map((n) => `\`${n}\``).join(', ')}`),
   '',
-  '## Gaps in wOS screens (these fail the build)',
+  '## Gaps (these fail the build)',
   '',
-  ...(gaps.length ? gaps.map((g) => `- ${g.screen}: ${g.tag} "${g.text}" (${g.verdict}${g.tool ? `: ${g.tool}` : ''})`) : ['None.']),
+  ...(gaps.length ? gaps.map((g) => `- ${g.app}, ${g.screen}: ${g.tag} "${g.text}" (${g.verdict}${g.tool ? `: ${g.tool}` : ''})`) : ['None.']),
   '',
-  '## Apps from other repos: gaps to fix in those repos',
+  '## Screens walked',
   '',
-  ...((g) => (g.length ? g.map((x) => `- ${x.app}, ${x.screen}: ${x.tag} "${x.text}" (${x.verdict}${x.tool ? `: ${x.tool}` : ''})`) : ['None.']))(results.filter((r) => r.external && ['missing', 'unknown-tool', 'none-without-why'].includes(r.verdict))),
+  ...Object.entries(results.reduce((m, r) => { const k = `${r.app}: ${r.screen}`; (m[k] ??= { a: 0, mv: 0 }); if (r.verdict === 'moves') m[k].mv++; else m[k].a++; return m; }, {})).map(([k, v]) => `- ${k}: ${v.a} actions, ${v.mv} moves`),
   '',
-  '## Mounted apps: actions not yet mapped to a tool',
+  ...(notes.length ? ['## Not walked', '', ...notes.map((n) => `- ${n}`), ''] : []),
+  '## Where each app comes from',
   '',
-  'The CRM and board pages call their own `/v1/<tool>` routes from scripts, which are the same handlers as `crm.*` and `board.*`. Elements below carry no `data-tool` yet, so the harness cannot prove which tool each one calls. They close when the native screens replace the frames, or when those apps add `data-tool` to their pages.',
-  '',
-  ...results.filter((r) => r.mounted && r.verdict !== 'tool' && r.verdict !== 'moves').slice(0, 80).map((g) => `- ${g.app}: ${g.tag} "${g.text}"`),
+  ...[...core.registry.apps.values()].filter((a) => a.server).map((a) => `- **${a.manifest.id}** ${a.manifest.version}: ${a.builtin ? 'built into wOS' : path.relative(root, a.dir) || a.dir}${a.manifest.screens ? ', native screens' : a.manifest.mount ? ', its own pages in a frame' : ''}`),
   '',
   '## Off means not downloaded',
   '',
-  offLeaks.length ? `FAILED: requests for apps that were off: ${offLeaks.join(', ')}` : 'With Chat (the example app) and the CRM turned off, walking every screen requested nothing of theirs: no `/apps/chat/screens.js`, nothing under `/m/crm/`.',
+  offLeaks.length ? `FAILED: requests for apps that were off: ${offLeaks.join(', ')}` : `With every app turned off (${offApps.join(', ')}), walking every screen requested nothing of theirs: no \`/apps/<id>/screens.js\`, nothing under \`/m/<id>/\`.`,
   agentsChunkOnHome.length ? `FAILED: the home screen downloaded the Agents screens (${agentsChunkOnHome.join(', ')}).` : 'The home screen does not download the Agents screens; they are a separate file fetched when Agents is opened.',
   '',
   errors.length ? `## Page errors\n\n${errors.map((e) => `- ${e}`).join('\n')}` : '',

@@ -19,7 +19,7 @@ export function AppView({ app, sub }: { app?: AppInfo; sub: string }) {
     return <div className="ui-page"><Empty icon="settings" title="That app is off" action={<a className="ui-btn is-quiet" {...linkProps('/settings/apps')}>Open apps</a>}>Turn it on in Settings to use it here.</Empty></div>;
   }
   if (app.unavailable) return <div className="ui-page"><Empty icon="settings" title={`${app.name} is not available here`}>{app.unavailable}</Empty></div>;
-  if (app.mount) return <Frame app={app} sub={sub} />;
+  if (app.mount && !app.screens) return <Frame app={app} sub={sub} />;
   return <Screens app={app} sub={sub} />;
 }
 

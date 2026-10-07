@@ -53,8 +53,8 @@ All settings: [`.env.example`](.env.example).
 | Server | `apps/server`, `core/` | One long-running Node 22 process: accounts and teams, sign-in (GitHub, email link, MCP OAuth), the app registry, the tool catalogue, `/api/tools/<name>` and `/mcp` from the same handlers, storage (Postgres or SQLite) with migrations on start, events and the `/live` socket, the audit log, alerts (inbox, browser, Web Push, email), the model router, conversations |
 | Shell | `apps/shell` | React on the ui-design kit: conversation home with history and a model picker, the left rail of enabled apps, inbox, settings. Installable as a web app (PWA). |
 | Agents | `apps-builtin/agents` | Saved agents run on the server; plans as checklists with evidence; progress = done steps / all steps; a 1, 2, 4 or 6 panel grid; status colours; one inbox |
-| Board and CRM | `apps-builtin/board`, `apps-builtin/crm` | Their own pages mounted as they are under `/m/<id>/`, their tools as `board.*` and `crm.*` |
-| Other apps | their own repos (Chat, Email, Meetings) | loaded from `WOS_APPS` or `apps-installed/`; see [`packages/manifest`](packages/manifest) |
+| Board, CRM, Chat, Email | their own repos (`warOnSaaS/agent-kanban`, `warOnSaaS/crm`, `warOnSaaS/chat`, `warOnSaaS/email`) | app packages loaded from `WOS_APPS` or `apps-installed/` with native screens on the suite's storage; see [`packages/manifest`](packages/manifest). The board keeps a team's data in its GitHub repo once one is connected, and in the suite's database until then |
+| Fallback mounts | `apps-builtin/board`, `apps-builtin/crm` | used only when the board or CRM package is not installed: their own pages in a frame under `/m/<id>/` |
 | Contracts | `packages/manifest`, `packages/tools` | the app manifest and the tool catalogue every app ships |
 | Self-host | `docker-compose.yml`, `deploy/` | server, Postgres, Caddy |
 
@@ -70,7 +70,7 @@ Every action is a tool. The build fails when it is not:
 
 | Check | Command | Fails when |
 |---|---|---|
-| Screen to tool (Playwright) | `npm run test:parity` | a button, menu item, switch or form on any screen has no `data-tool`, or names a tool not in the catalogue; or an app that is off gets downloaded |
+| Screen to tool (Playwright) | `node scripts/vendor.mjs && npm run build && npm run test:parity` | a button, menu item, switch or form on any screen of any app that is on (shell, Agents, board, CRM, Chat, Email, every list and record screen) has no `data-tool`, or names a tool not in the catalogue; or an app that is off gets downloaded |
 | Catalogue | `npm test` (`test/unit/catalogue.test.ts`) | a tool lacks a schema, description, scope, handler or a test that names it, or is not reachable over MCP and REST |
 | No side doors | `npm run lint:doors` | screen code calls anything but `/api/tools/*`, `/files/*`, `/media/*` and the live socket |
 | Agent run test | `test/unit/mcp.test.ts` | a scripted agent using only MCP cannot turn apps off and on, invite someone, start an agent and export everything |
@@ -90,4 +90,4 @@ npm run check                 # typecheck, tests, no side doors, check:clean
 npm run shots -- http://localhost:8080   # screenshots at 1440 and 390, light and dark, into .shots/
 ```
 
-The CRM and board mount from sibling checkouts (`../crm`, `../agent-kanban`) or `WOS_CRM_DIR` and `WOS_BOARD_DIR`; `node scripts/vendor.mjs` copies them (and Chat and Email) into `vendor/` for a deploy.
+The app packages come from sibling checkouts (`../agent-kanban`, `../crm`, `../wos-chat`, `../wos-email`): `node scripts/vendor.mjs` copies them into `vendor/`, and `WOS_APPS=vendor/chat,vendor/email,vendor/agent-kanban,vendor/crm` loads them (the parity check uses them automatically when they are vendored).
