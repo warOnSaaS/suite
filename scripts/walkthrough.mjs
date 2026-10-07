@@ -23,6 +23,12 @@ const size = { width: 1280, height: 800 };
 const ctxA = await browser.newContext({ viewport: size, recordVideo: { dir: path.join(out, 'raw'), size }, permissions: ['camera', 'microphone'] });
 const page = await ctxA.newPage();
 const videos = [page.video(), null];
+// The film cuts between browsers: each segment is a stretch of one browser's recording, in seconds from
+// when that browser opened. show(i) ends the current stretch and starts one on browser i.
+const opened = [Date.now()];
+const segs = [];
+let cur = { v: 0, from: 0 };
+const show = (i) => { const t = (v) => (Date.now() - opened[v]) / 1000; segs.push({ ...cur, to: t(cur.v) }); cur = { v: i, from: t(i) }; };
 const requests = [];
 page.on('request', (r) => requests.push(new URL(r.url()).pathname));
 const errors = [];
@@ -167,6 +173,8 @@ try {
   const ctxB = await browser.newContext({ viewport: size, recordVideo: { dir: path.join(out, 'raw'), size }, storageState: state, permissions: ['camera', 'microphone'] });
   const pageB = await ctxB.newPage();
   videos[1] = pageB.video();
+  opened[1] = Date.now();
+  show(1);
   await pageB.goto(`${base}/a/crm/contacts/${contactId ?? ''}`);
   await pageB.waitForTimeout(3000);
   await caption(pageB, 'A second browser, same person: the contact is here');
@@ -179,6 +187,7 @@ try {
   await pageB.waitForTimeout(3000);
   await caption(pageB, 'The same two agents, with the same progress');
   await pageB.waitForTimeout(2500);
+  show(0);
 
   // 7. Meetings, when installed: start a call from a Chat channel, and join it from another browser. A call
   // needs two different people (the same person joining twice replaces their first connection), so the
@@ -204,10 +213,12 @@ try {
       await pause(4000);
       const ctxC = await browser.newContext({ viewport: size, recordVideo: { dir: path.join(out, 'raw'), size }, permissions: ['camera', 'microphone'] });
       const pageC = await ctxC.newPage();
-      videos.push(pageC.video());
+      videos[2] = pageC.video();
+      opened[2] = Date.now();
       await pageC.goto(`${base}/auth/demo?next=/`);
       await pageC.waitForTimeout(2500);
       await tool(pageC, 'apps.enable', { app: 'meet' });
+      show(2);
       await pageC.goto(base + link);
       await pageC.waitForTimeout(3000);
       await caption(pageC, 'Another browser, another person, opens the call link');
@@ -216,16 +227,20 @@ try {
       await pageC.waitForTimeout(3000);
       await caption(pageC, 'They wait in the waiting room');
       await pageC.waitForTimeout(1500);
+      show(0);
       await say('The host lets them in');
       const admit = page.locator('[data-tool="meet.admit"]').first();
       await admit.waitFor({ timeout: 20000 }).catch(() => {});
       await admit.click().catch(() => {});
-      await pageC.waitForTimeout(9000);
+      await pageC.waitForTimeout(6000);
+      show(2);
+      await pageC.waitForTimeout(1000);
       await caption(pageC, 'Both people in the call');
       await pageC.waitForTimeout(2000);
       const live = async (p) => p.evaluate(() => [...document.querySelectorAll('video')].filter((v) => v.readyState >= 2 && v.videoWidth > 0).length);
       const [a, c] = [await live(page), await live(pageC)];
       check('both browsers are in the call with video', a >= 2 && c >= 2, `host sees ${a} playing videos, guest sees ${c}`);
+      show(0);
       await say('Both people in the call, peer to peer', 3000);
       await ctxC.close();
     } else check('a Call button in the channel', false, 'none found');
@@ -236,17 +251,24 @@ try {
   check('walkthrough ran to the end', false, e.message.split('\n')[0]);
 } finally {
   await say(results.every((r) => r.ok) ? 'Walkthrough complete' : 'Walkthrough finished with problems', 1500);
+  show(0);
   await ctxA.close();
   await browser.close();
 }
 
-// Join the recordings (main browser, then the second) into one video, when ffmpeg is here.
-const raw = [];
-for (const v of videos) if (v) raw.push(await v.path());
+// Cut the stretches out of each browser's recording and join them, a little faster than real time.
 try {
-  fs.writeFileSync(path.join(out, 'raw', 'list.txt'), raw.map((f) => `file '${f}'`).join('\n'));
-  execSync(`ffmpeg -y -loglevel error -f concat -safe 0 -i "${path.join(out, 'raw', 'list.txt')}" -c:v libx264 -pix_fmt yuv420p -crf 26 -preset veryfast "${path.join(out, 'walkthrough.mp4')}"`);
-  note(`video: ${path.join(out, 'walkthrough.mp4')}`);
+  const files = [];
+  for (const v of videos) files.push(v ? await v.path() : null);
+  const parts = [];
+  segs.filter((g) => files[g.v] && g.to - g.from > 0.3).forEach((g, n) => {
+    const part = path.join(out, 'raw', `part${String(n).padStart(2, '0')}.mp4`);
+    execSync(`ffmpeg -y -loglevel error -ss ${g.from.toFixed(2)} -to ${g.to.toFixed(2)} -i "${files[g.v]}" -vf "setpts=PTS/1.5,fps=25" -an -c:v libx264 -pix_fmt yuv420p -crf 26 -preset veryfast "${part}"`);
+    parts.push(part);
+  });
+  fs.writeFileSync(path.join(out, 'raw', 'list.txt'), parts.map((f) => `file '${f}'`).join('\n'));
+  execSync(`ffmpeg -y -loglevel error -f concat -safe 0 -i "${path.join(out, 'raw', 'list.txt')}" -c copy "${path.join(out, 'walkthrough.mp4')}"`);
+  note(`video: ${path.join(out, 'walkthrough.mp4')} (${parts.length} cuts, 1.5x speed)`);
 } catch (e) { note(`ffmpeg failed (${e.message.split('\n')[0]}); raw videos are in ${path.join(out, 'raw')}`); }
 fs.writeFileSync(path.join(out, 'results.json'), JSON.stringify({ base, at: new Date().toISOString(), results, errors }, null, 2));
 fs.writeFileSync(path.join(out, 'log.txt'), log.join('\n') + '\n');
