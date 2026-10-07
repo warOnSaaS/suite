@@ -73,7 +73,7 @@ function chatTurn(req: ChatRequest): Part[] {
     return [say(`${out}\n\n(Demo model: a script that calls real tools. Pick a real model in the model menu to have a proper conversation.)`)];
   }
   const text = lastUserText(req.messages);
-  const t = readTool(req, text) ?? (/alert|inbox|approve/i.test(text) && has(req, 'alerts.list') ? tool('alerts.list', {}) : null);
+  const t = (/alert|inbox|approve|needs me/i.test(text) && has(req, 'alerts.list') ? tool('alerts.list', {}) : null) ?? readTool(req, text);
   if (t && /\w{3,}/.test(text) && !/^(hi|hello|hey)\b/i.test(text)) return [say('Let me look that up.'), t];
   return [say(`This is the demo model, a script rather than an AI, so it can only look things up. It can still show you how wOS works: try "show my CRM deals", "what is on the board", or "anything in my inbox?".\n\nTo talk to a real model, open the model menu and add an Anthropic or OpenAI key, a local Ollama, or any OpenAI-compatible server.`)];
 }

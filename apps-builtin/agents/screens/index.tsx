@@ -271,7 +271,7 @@ function NewAgent({ onClose, onSaved }: { onClose: () => void; onSaved: () => vo
   return (
     <dialog ref={ref} className="ui-dialog" onClose={onClose}>
       <div className="ui-dialog-h"><h3>New agent</h3><button className="ui-x" data-tool="none" data-why="closes the dialog" onClick={() => ref.current?.close()} aria-label="Close">×</button></div>
-      <form className="ui-dialog-b" id="new-agent" onSubmit={(e) => { e.preventDefault(); save(); }}>
+      <form className="ui-dialog-b" id="new-agent" data-tool="agents.create" onSubmit={(e) => { e.preventDefault(); save(); }}>
         <div className="ui-fields">
           <label className="ui-field"><span>Name</span><input className="ui-input" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Researcher" required /></label>
           <label className="ui-field"><span>Model</span>
@@ -307,7 +307,7 @@ function StartRun({ agents, preset, onClose, onStarted }: { agents: Agent[]; pre
   return (
     <dialog ref={ref} className="ui-dialog" onClose={onClose}>
       <div className="ui-dialog-h"><h3>Start an agent</h3><button className="ui-x" data-tool="none" data-why="closes the dialog" onClick={() => ref.current?.close()} aria-label="Close">×</button></div>
-      <form className="ui-dialog-b" id="start-run" onSubmit={(e) => { e.preventDefault(); go(); }}>
+      <form className="ui-dialog-b" id="start-run" data-tool="agents.start" onSubmit={(e) => { e.preventDefault(); go(); }}>
         {agents.length ? (
           <>
             <label className="ui-field"><span>Agent</span><select className="ui-select" value={agentId} onChange={(e) => setAgentId(e.target.value)} data-tool="none" data-why="part of the start form">{agents.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>

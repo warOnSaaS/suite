@@ -27,6 +27,7 @@ export async function serveCore(core: Core) {
   const { handle } = await import('../../core/http.ts');
   const srv = http.createServer((req, res) => { handle(core, req, res); });
   await new Promise<void>((r) => srv.listen(0, r));
+  srv.unref();
   const port = (srv.address() as any).port;
   core.publicUrl = `http://localhost:${port}`;
   return { url: core.publicUrl, close: () => new Promise((r) => { srv.closeAllConnections(); srv.close(r); }) };
@@ -57,5 +58,6 @@ export async function fakeModelServer(script: (body: any) => { text?: string; to
     res.end('data: [DONE]\n\n');
   });
   await new Promise<void>((r) => srv.listen(0, r));
+  srv.unref();
   return { url: `http://localhost:${(srv.address() as any).port}/v1`, seen, close: () => new Promise((r) => { srv.closeAllConnections(); srv.close(r); }) };
 }

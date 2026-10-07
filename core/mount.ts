@@ -32,7 +32,7 @@ export async function toolsFrom(dir: string, appId: string, defineToolsRel: stri
     const schema: any = zodToJsonSchema(z.object(meta.shape ?? {}), { target: 'jsonSchema7', $refStrategy: 'none' });
     delete schema.$schema;
     const scope = meta.readOnly ? 'read' : meta.destructive ? 'delete' : 'write';
-    let description = String(meta.description ?? meta.title ?? name).replace(/—/g, ',');
+    let description = String(meta.description ?? meta.title ?? name).replace(/\u2014/g, ',');
     if (description.length < 20) description = `${description} (${appId}).`.padEnd(20, '.');
     out.push({
       name: `${appId}.${name.replace(/[^a-z0-9_]/gi, '_').toLowerCase()}`,

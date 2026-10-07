@@ -14,3 +14,4 @@ playwright-report/
 *.sqlite
 *.sqlite-*
 *.db
+parity-report.json

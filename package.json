@@ -15,7 +15,7 @@
     "build": "node scripts/build.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --disable-warning=ExperimentalWarning --test --test-timeout=60000 test/unit/*.test.ts",
-    "test:parity": "node scripts/parity.mjs",
+    "test:parity": "node --disable-warning=ExperimentalWarning scripts/parity.mjs",
     "lint:doors": "node scripts/no-side-doors.mjs",
     "check:clean": "node scripts/check-clean.mjs",
     "check": "npm run typecheck && npm test && npm run lint:doors && npm run check:clean",
