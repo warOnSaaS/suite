@@ -38,6 +38,8 @@ export class Core {
   demo: boolean;
   publicUrl: string;
   log: { info: (...a: unknown[]) => void; warn: (...a: unknown[]) => void; error: (...a: unknown[]) => void };
+  /** Set by the Agents app on serverless hosts: move this team's working runs forward. */
+  agentsPump?: (teamId: string) => Promise<void>;
   private timers: NodeJS.Timeout[] = [];
   started = false;
 

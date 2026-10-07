@@ -66,13 +66,14 @@ export class Models {
   /** The provider and model to use when none is chosen: the person's default, else the first real one, else the demo. */
   async pick(teamId: string, userId: string | null, providerId?: string | null, model?: string | null) {
     const list = await this.visible(teamId, userId);
-    let p = providerId ? list.find((x) => x.id === providerId) : undefined;
+    let p: Provider | undefined = providerId ? list.find((x) => x.id === providerId) : undefined;
     if (!p) {
       const pref = userId ? parse<any>((await this.core.db.get<any>('SELECT value FROM settings WHERE scope = ? AND key = ?', [`user:${userId}:${teamId}`, 'model']))?.value, null) : null;
       p = (pref && list.find((x) => x.id === pref.provider_id)) || list.find((x) => x.kind !== 'demo') || DEMO;
-      if (!model && pref?.provider_id === p.id) model = pref.model;
+      if (!model && pref?.provider_id === p?.id) model = pref.model;
     }
-    return { provider: p, model: model || p.default_model || p.models[0]?.id || DEFAULT_MODEL[p.kind] || '' };
+    const provider: Provider = p ?? DEMO;
+    return { provider, model: model || provider.default_model || provider.models[0]?.id || DEFAULT_MODEL[provider.kind] || '' };
   }
 }
 

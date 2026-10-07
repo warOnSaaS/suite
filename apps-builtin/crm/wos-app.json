@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/warOnSaaS/suite/main/packages/manifest/wos-app.schema.json",
+  "id": "crm",
+  "name": "CRM",
+  "description": "Contacts, organizations, deals and activities for the team, mounted from warOnSaaS/crm as it is.",
+  "version": "0.1.0",
+  "license": "AGPL-3.0-only",
+  "requires": { "core": ">=0.1" },
+  "tools": "./tools.json",
+  "server": "./server.ts",
+  "icon": "crm",
+  "nav": { "label": "CRM", "order": 20 },
+  "needs": { "services": [], "permissions": [], "desktop": [], "env": ["WOS_CRM_DIR", "WOS_CRM_WORKSPACE_DIR", "WOS_CRM_NAME"] },
+  "data": { "onDisable": "keep", "exports": ["contacts", "organizations", "deals", "activities"] },
+  "mount": { "path": "/m/crm", "start": "/" }
+}

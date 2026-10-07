@@ -273,7 +273,7 @@ Write in plain words and sentence case. Never use em dashes.`;
   const handlers: Record<string, (input: any, call: any) => Promise<any>> = {
     async 'agents.list'({ include_archived }, call) {
       const agents = await db.query<any>(`SELECT * FROM agents WHERE team_id = ? ${include_archived ? '' : 'AND archived_at IS NULL'} ORDER BY created_at`, [call.team.id]);
-      const out = [];
+      const out: any[] = [];
       for (const a of agents) {
         const last = await db.get<any>('SELECT * FROM agent_runs WHERE agent_id = ? ORDER BY started_at DESC LIMIT 1', [a.id]);
         out.push({ ...agentView(a), last_run: last ? await summary(last) : null });
@@ -428,7 +428,7 @@ Write in plain words and sentence case. Never use em dashes.`;
       else if (status && status !== 'all') where.push('status = ?'), args.push(status);
       if (agent_id) where.push('agent_id = ?'), args.push(agent_id);
       const rows = await db.query<any>(`SELECT * FROM agent_runs WHERE ${where.join(' AND ')} ORDER BY started_at DESC LIMIT ?`, [...args, limit]);
-      const runs = [];
+      const runs: any[] = [];
       for (const r of rows) runs.push(await summary(r));
       const counts: Record<string, number> = {};
       for (const r of await db.query<any>('SELECT status, COUNT(*) AS n FROM agent_runs WHERE team_id = ? GROUP BY status', [call.team.id])) counts[r.status] = Number(r.n);

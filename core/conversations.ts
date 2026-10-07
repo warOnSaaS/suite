@@ -123,7 +123,7 @@ async function send(core: Core, call: any, a: { conversation_id?: string; text: 
     finalText = textOf(r.parts) || finalText;
     const calls = r.parts.filter((p) => p.type === 'tool_call') as Extract<Part, { type: 'tool_call' }>[];
     if (r.stop !== 'tool' || !calls.length) break;
-    const results = [];
+    const results: Part[] = [];
     let waiting = false;
     for (const c of calls) {
       core.events.publish(call.team.id, 'conversations.tool.called', { conversation_id: conv.id, name: c.name }, undefined, user.id);

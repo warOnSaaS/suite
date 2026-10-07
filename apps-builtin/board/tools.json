@@ -1,0 +1,1205 @@
+{
+  "$schema": "https://raw.githubusercontent.com/warOnSaaS/suite/main/packages/tools/tools.schema.json",
+  "app": "board",
+  "version": 1,
+  "tools": [
+    {
+      "name": "board.my_day",
+      "title": "My day",
+      "description": "What is on the person signed in's plate: new tasks not opened yet, things waiting on their review, meetings to set up, overdue and upcoming tasks, unassigned work up for grabs, and unread alerts. Use when someone types \"check tasks\", \"what's assigned to me\", \"my tasks\", \"what's open\", or starts their day. Read it back as a short briefing, new things first.",
+      "input": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.list_clients",
+      "title": "List clients",
+      "description": "Every client this person can see, with status.",
+      "input": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.open_client",
+      "title": "Open a client",
+      "description": "Everything about one client: overview, all tasks, the latest notes and files.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "client": {
+            "type": "string",
+            "description": "Client name or slug, e.g. \"Acme\""
+          }
+        },
+        "required": [
+          "client"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.find_tasks",
+      "title": "Find tasks",
+      "description": "List tasks, filtered by client, person and status. status \"open\" means anything not done.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "client": {
+            "type": "string",
+            "description": "Client name"
+          },
+          "assignee": {
+            "type": "string",
+            "description": "Person name, \"me\", or \"nobody\" for unassigned"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "todo",
+              "doing",
+              "waiting",
+              "review",
+              "done"
+            ]
+          },
+          "due_before": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Only tasks due on or before this date"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.add_task",
+      "title": "Add a task",
+      "description": "Create a task for a client. Assigning it to someone else sends them an alert. When someone just types \"new task\": ask in one message for what it is, and (only if not obvious) which client, who owns it (or \"nobody\" to leave it up for grabs) and when it is due. Then create it and confirm in one line.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "client": {
+            "type": "string",
+            "description": "Client name"
+          },
+          "title": {
+            "type": "string",
+            "description": "Short, starts with a verb: \"Draft the PTO policy\""
+          },
+          "details": {
+            "type": "string",
+            "description": "Context, links, what done looks like"
+          },
+          "assignee": {
+            "type": "string",
+            "description": "Who owns it (name), or \"nobody\" to leave it unassigned. Defaults to the person asking."
+          },
+          "due": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Due date"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "normal",
+              "high",
+              "urgent"
+            ]
+          },
+          "private_to": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "Only these people (names) can see it. Leave out to share with everyone on the client."
+          }
+        },
+        "required": [
+          "client",
+          "title"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.update_task",
+      "title": "Update a task",
+      "description": "Change status, owner, due date or priority, and/or leave a comment. The owner is alerted when someone else changes their task. When someone just types \"assign task\": call status (or my_day), show the open tasks as a short numbered list with their current owner, ask which one and who should have it (\"nobody\" unassigns it), then set assignee and confirm in one line.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "task": {
+            "type": "string",
+            "description": "Task id (from find_tasks) or part of it"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "todo",
+              "doing",
+              "waiting",
+              "review",
+              "done"
+            ]
+          },
+          "assignee": {
+            "type": "string",
+            "description": "Give it to someone (name), or \"nobody\" to unassign it"
+          },
+          "due": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "New due date"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "normal",
+              "high",
+              "urgent"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "description": "New title"
+          },
+          "comment": {
+            "type": "string",
+            "description": "A progress note to add to the task"
+          }
+        },
+        "required": [
+          "task"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.review",
+      "title": "Review work",
+      "description": "Use when someone types \"review\" or asks to review something. Opens the work handed to them (fetches the linked pages and reads the linked files) so you can judge the deliverable itself against what was asked. Leave task out to take the next item waiting on their review.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "task": {
+            "type": "string",
+            "description": "Task id. Leave out for the next thing waiting on their review."
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.open_task",
+      "title": "Open a task",
+      "description": "Read one task in full: details, any handoff (what was done, what is next, links) and its activity.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "task": {
+            "type": "string",
+            "description": "Task id from my_day or find_tasks, or part of its title"
+          }
+        },
+        "required": [
+          "task"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.hand_off",
+      "title": "Hand off work",
+      "description": "Pass work to a teammate so they (or their agent) can pick it up: records what you did, what is next and the links in the task, reassigns it, and alerts them. Use an existing task, or give a client and title to log finished work and hand it on in one step. When someone just types \"hand off task\": 1) if it is not obvious which task, call my_day and ask them to pick one by number; 2) ask who it goes to and whether it is for review or for them to take over; 3) draft \"what I did\" and \"what's next\" from this conversation and the task, show the draft in two short lines, and send it when they say yes.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "to": {
+            "type": "string",
+            "description": "Who picks it up (name)"
+          },
+          "what_i_did": {
+            "type": "string",
+            "description": "What is finished, concretely"
+          },
+          "whats_next": {
+            "type": "string",
+            "description": "The next steps for them, concretely enough for their agent to act on"
+          },
+          "task": {
+            "type": "string",
+            "description": "Existing task id. Leave out to create a new task."
+          },
+          "client": {
+            "type": "string",
+            "description": "Client, when creating a new task"
+          },
+          "title": {
+            "type": "string",
+            "description": "Title, when creating a new task"
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "URLs or workspace paths they will need"
+          },
+          "due": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "When the next step is due"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "low",
+              "normal",
+              "high",
+              "urgent"
+            ]
+          },
+          "needs": {
+            "type": "string",
+            "enum": [
+              "action",
+              "review"
+            ],
+            "description": "\"review\" if they need to review and approve it; \"action\" (default) if they take it from here"
+          }
+        },
+        "required": [
+          "to",
+          "what_i_did",
+          "whats_next"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.meet_to_discuss",
+      "title": "Meet to discuss",
+      "description": "Park a task as waiting for a conversation: who should be in it, who sets it up, and (once booked) when. Everyone involved is alerted.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "task": {
+            "type": "string",
+            "description": "Task id"
+          },
+          "with": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "Who should be in the meeting (names)"
+          },
+          "owner": {
+            "type": "string",
+            "description": "Who sets the meeting up (name). Defaults to the person asking."
+          },
+          "when": {
+            "type": "string",
+            "description": "Once booked: \"YYYY-MM-DD HH:MM\", 24h local time"
+          },
+          "minutes": {
+            "type": "integer",
+            "description": "Length, default 30"
+          },
+          "agenda": {
+            "type": "string",
+            "description": "What to decide"
+          }
+        },
+        "required": [
+          "task",
+          "with"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.start",
+      "title": "Start",
+      "description": "Use when someone types \"agent-kanban start\", \"start\" or \"hi\", or is new here (including right after setting up agent-kanban and restarting): a welcome, what is assigned to them right now, and the four short commands they can type.",
+      "input": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.status",
+      "title": "Where things stand",
+      "description": "Every task this person can see, by stage (to do, in progress, waiting, in review), plus who has how much, what is overdue, what is unassigned and what got done in the last two weeks. Use when someone types \"status\", \"where do things stand\", \"all tasks\" or asks for an overview. Present it as a compact board, not a wall of text.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "client": {
+            "type": "string",
+            "description": "Only this client"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.view_kanban",
+      "title": "View kanban",
+      "description": "Draws the kanban board in the chat: columns TO DO, DOING, WAITING, REVIEW, DONE, one card per task with owner, client and flags. Use when someone types \"view kanban\", \"show the board\" or \"kanban\". Optionally one client. In apps that cannot show it, share the board link it returns.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "client": {
+            "type": "string",
+            "description": "Only this client"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.how_to_use",
+      "title": "How to use this",
+      "description": "Plain-language guide: what to say to create, assign, unassign, hand off, review, and set up meetings.",
+      "input": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.recent_activity",
+      "title": "Recent activity",
+      "description": "What changed on the board lately and who did it: people, and the AI apps they connected (for example \"Claude (Sam's) moved Draft the PTO policy to Review\"), newest first, plus which AI apps are connected right now. Use it to see what other agents did before you act, or when someone asks \"what changed\" or \"what did Claude do\".",
+      "input": {
+        "type": "object",
+        "properties": {
+          "since": {
+            "type": "string",
+            "description": "Only changes after this time, e.g. 2026-10-07T14:00"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "description": "At most this many (default 15)"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.add_note",
+      "title": "Save a note",
+      "description": "Save meeting notes, call notes, a decision or context to a client. Write the body in clean markdown.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "client": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "description": "e.g. \"Kickoff call with the managing partner\""
+          },
+          "body": {
+            "type": "string"
+          },
+          "private_to": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "Only these people (names) can see it. Leave out to share with everyone on the client."
+          }
+        },
+        "required": [
+          "client",
+          "title",
+          "body"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.list_ideas",
+      "title": "Ideas board",
+      "description": "The shared brainstorm board: ideas anyone on the team has posted, newest first.",
+      "input": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.add_idea",
+      "title": "Post an idea",
+      "description": "Put an idea on the shared board: a service to offer, a process fix, a tool to try, a thought about a client.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string",
+            "description": "The idea, worked out as far as it goes"
+          },
+          "client": {
+            "type": "string",
+            "description": "If it is about one client"
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.comment",
+      "title": "Comment",
+      "description": "Reply on an idea, note or task. The person who created it gets an alert.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "item": {
+            "type": "string",
+            "description": "The path from a listing, e.g. ideas/2026-10-05-client-portal-ab12.md, or a task id"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "item",
+          "text"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.send_alert",
+      "title": "Send an alert",
+      "description": "Tell one or more teammates something: a heads-up, a blocker, a request. Urgent alerts are also emailed.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "to": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "Names, or \"everyone\""
+          },
+          "message": {
+            "type": "string"
+          },
+          "client": {
+            "type": "string",
+            "description": "Client it is about"
+          },
+          "urgent": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "to",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.my_alerts",
+      "title": "My alerts",
+      "description": "Read alerts sent to this person. Marks them read unless asked not to.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "include_read": {
+            "type": "boolean",
+            "description": "Also show alerts already read"
+          },
+          "keep_unread": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.search",
+      "title": "Search",
+      "description": "Search everything this person can see: clients, tasks, notes, ideas, playbooks. Returns ids to pass to fetch.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.fetch",
+      "title": "Read a file",
+      "description": "Read one item in full by its id/path (from search or any listing).",
+      "input": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.save_document",
+      "title": "Save a document",
+      "description": "Create or overwrite any other file: a playbook in playbooks/, a client doc in clients/<client>/docs/, a private draft in people/<your id>/. Use for longer documents, not tasks or notes.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "e.g. playbooks/onboarding-a-new-client.md"
+          },
+          "content": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "content"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.team",
+      "title": "Team",
+      "description": "Who is on the team and their role.",
+      "input": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.connect_links",
+      "title": "Connect links",
+      "description": "How to use this board from each app: the one-click Claude link, the Claude Code and Codex commands, the MCP address and the board in a browser. Use when someone asks how to connect, or how a teammate gets set up.",
+      "input": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.add_person",
+      "title": "Invite someone",
+      "description": "Owner only. Adds someone to the team (people.yml) and returns their personal setup link. Give their name and their GitHub username, or the email on their GitHub account. role \"owner\" sees everything; \"team\" sees only the clients listed (or \"all\"). sees \"own\" limits them to their own tasks.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Their name, e.g. \"Jordan Lee\""
+          },
+          "github": {
+            "type": "string",
+            "description": "Their GitHub username"
+          },
+          "email": {
+            "type": "string",
+            "description": "The email on their GitHub account, if you do not know their username"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "team",
+              "owner"
+            ]
+          },
+          "clients": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "Client names they work on, or \"all\""
+          },
+          "sees": {
+            "type": "string",
+            "enum": [
+              "all",
+              "own"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "description": "What they do, e.g. \"Assistant\""
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.update_person",
+      "title": "Change someone's access",
+      "description": "Owner only. Change someone's role (owner or team), the clients they see, or limit them to their own tasks.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "person": {
+            "type": "string",
+            "description": "Name or id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "team",
+              "owner"
+            ]
+          },
+          "clients": {
+            "anyOf": [
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "Client names, or \"all\""
+          },
+          "sees": {
+            "type": "string",
+            "enum": [
+              "all",
+              "own"
+            ]
+          },
+          "title": {
+            "type": "string",
+            "description": "What they do"
+          }
+        },
+        "required": [
+          "person"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.remove_person",
+      "title": "Remove someone",
+      "description": "Owner only. Takes someone off the team. They are signed out everywhere at once. Their past work stays.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "person": {
+            "type": "string",
+            "description": "Name or id"
+          }
+        },
+        "required": [
+          "person"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.clear_examples",
+      "title": "Clear the examples",
+      "description": "Owner only. Removes the example cards a new board starts with (and their Examples client). Use when someone says \"clear the examples\" or is ready to start for real. Real work is never touched: only items marked as examples.",
+      "input": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.export_board",
+      "title": "Download everything",
+      "description": "Owner only. A link to a zip of everything on this board: every task, note, idea and file. It is all in your GitHub repo too. The link works for ten minutes.",
+      "input": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.invite_link",
+      "title": "Invite link",
+      "description": "Owner only. A personal setup link for someone in people.yml: the instructions file, greeting them by name and telling them which email to use on GitHub. Send it to them; they drop it into their agent.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "person": {
+            "type": "string",
+            "description": "Name or id from people.yml"
+          }
+        },
+        "required": [
+          "person"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "board.add_client",
+      "title": "Add a client",
+      "description": "Owner only. Start a new client folder.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string",
+            "description": "What the engagement is"
+          },
+          "contacts": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    }
+  ]
+}

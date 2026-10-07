@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/warOnSaaS/suite/main/packages/manifest/wos-app.schema.json",
+  "id": "board",
+  "name": "Board",
+  "description": "The team board for people and agents: tasks, hand-offs, reviews and shared notes, mounted from warOnSaaS/agent-kanban as it is.",
+  "version": "0.1.0",
+  "license": "AGPL-3.0-only",
+  "requires": { "core": ">=0.1" },
+  "tools": "./tools.json",
+  "server": "./server.ts",
+  "icon": "board",
+  "nav": { "label": "Board", "order": 10 },
+  "needs": { "services": [], "permissions": [], "desktop": [], "env": ["WOS_BOARD_DIR", "WOS_BOARD_WORKSPACE_DIR", "WOS_BOARD_REPO", "WOS_BOARD_GITHUB_TOKEN", "WOS_BOARD_NAME"] },
+  "data": { "onDisable": "keep", "exports": ["tasks", "notes", "hand-offs"] },
+  "mount": { "path": "/m/board", "start": "/board" }
+}

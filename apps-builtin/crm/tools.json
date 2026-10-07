@@ -1,0 +1,556 @@
+{
+  "$schema": "https://raw.githubusercontent.com/warOnSaaS/suite/main/packages/tools/tools.schema.json",
+  "app": "crm",
+  "version": 1,
+  "tools": [
+    {
+      "name": "crm.find",
+      "title": "Find records",
+      "description": "Search contacts, organizations, deals and activities by any words: a name, a company, an email, a city, words from a note. Filter by kind, owner, deal stage or organization. Leave q empty to list.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "description": "Words to look for, e.g. \"birch\" or \"dana acme\""
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "contacts",
+              "organizations",
+              "deals",
+              "activities"
+            ],
+            "description": "Only this kind of record"
+          },
+          "owner": {
+            "type": "string",
+            "description": "Only records owned by this person (name, or \"me\")"
+          },
+          "stage": {
+            "type": "string",
+            "description": "Deals only: a stage name, e.g. \"Proposal\""
+          },
+          "org": {
+            "type": "string",
+            "description": "Only records at this organization (name or id)"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "At most this many (default 25)"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.open_record",
+      "title": "Open a record",
+      "description": "One contact, organization, deal or activity with its details, links and history (newest first). Takes an id from find.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The record id, e.g. c_dana01"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.create_contact",
+      "title": "Add a contact",
+      "description": "Add a person. Find them first so there is no duplicate. org links them to an organization by name or id (it must exist; create it with create_organization).",
+      "input": {
+        "type": "object",
+        "properties": {
+          "first_name": {
+            "type": "string"
+          },
+          "last_name": {
+            "type": "string",
+            "description": "Last name"
+          },
+          "title": {
+            "type": "string",
+            "description": "Job title"
+          },
+          "email": {
+            "type": "string",
+            "description": "Email"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Phone"
+          },
+          "org": {
+            "type": "string",
+            "description": "Organization name or id"
+          },
+          "owner": {
+            "type": "string",
+            "description": "Who looks after them (name). Defaults to you."
+          },
+          "city": {
+            "type": "string",
+            "description": "City"
+          },
+          "about": {
+            "type": "string",
+            "description": "Background worth remembering"
+          }
+        },
+        "required": [
+          "first_name"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.create_organization",
+      "title": "Add an organization",
+      "description": "Add a company or other organization. Find it first so there is no duplicate.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "website": {
+            "type": "string",
+            "description": "Website"
+          },
+          "industry": {
+            "type": "string",
+            "description": "Industry"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Phone"
+          },
+          "city": {
+            "type": "string",
+            "description": "City"
+          },
+          "owner": {
+            "type": "string",
+            "description": "Who looks after it (name). Defaults to you."
+          },
+          "about": {
+            "type": "string",
+            "description": "Background worth remembering"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.create_deal",
+      "title": "Add a deal",
+      "description": "Add a deal to the pipeline. Link it to an organization and, if known, the contact leading it.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "What is being sold, e.g. \"Online booking\""
+          },
+          "org": {
+            "type": "string",
+            "description": "Organization name or id"
+          },
+          "contact": {
+            "type": "string",
+            "description": "Contact name or id"
+          },
+          "stage": {
+            "type": "string",
+            "description": "Stage name; defaults to the first stage"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Value in the team currency"
+          },
+          "close_date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Expected close date"
+          },
+          "owner": {
+            "type": "string",
+            "description": "Who owns it (name). Defaults to you."
+          },
+          "about": {
+            "type": "string",
+            "description": "Notes"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.update_record",
+      "title": "Change a record",
+      "description": "Change fields on a contact, organization, deal or activity. Send only the fields to change; send an empty string to clear one.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The record id"
+          },
+          "fields": {
+            "type": "object",
+            "additionalProperties": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ]
+            },
+            "description": "Field names and new values, e.g. {\"title\": \"Partner\", \"phone\": \"555-0100\"}. Contact: first_name, last_name, title, email, phone, org, owner, city, about. Organization: name, website, industry, phone, city, owner, about. Deal: name, org, contact, stage, amount, close_date, owner, about. Activity: type, subject, body, at, due, done, contact, org, deal, owner."
+          }
+        },
+        "required": [
+          "id",
+          "fields"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.move_deal",
+      "title": "Move a deal",
+      "description": "Move a deal to another pipeline stage, e.g. to Proposal, Won or Lost.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The deal id"
+          },
+          "stage": {
+            "type": "string",
+            "description": "Stage name"
+          }
+        },
+        "required": [
+          "id",
+          "stage"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.log_activity",
+      "title": "Log an activity",
+      "description": "Save a note, call, meeting, email or task against a contact, organization or deal (by name or id). For a task, give a due date. For something that happened, \"at\" defaults to now.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "note",
+              "call",
+              "meeting",
+              "email",
+              "task"
+            ],
+            "description": "note, call, meeting, email or task"
+          },
+          "subject": {
+            "type": "string",
+            "description": "One line: what happened, or what needs doing"
+          },
+          "body": {
+            "type": "string",
+            "description": "Details"
+          },
+          "contact": {
+            "type": "string",
+            "description": "Contact name or id"
+          },
+          "org": {
+            "type": "string",
+            "description": "Organization name or id"
+          },
+          "deal": {
+            "type": "string",
+            "description": "Deal name or id"
+          },
+          "due": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Tasks: when it is due"
+          },
+          "at": {
+            "type": "string",
+            "description": "When it happened: 2026-10-07 or 2026-10-07 14:30. Defaults to now."
+          },
+          "owner": {
+            "type": "string",
+            "description": "Tasks: who does it (name). Defaults to you."
+          }
+        },
+        "required": [
+          "type",
+          "subject"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.complete_task",
+      "title": "Mark a task done",
+      "description": "Mark a task done (or open again with done: false).",
+      "input": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The task id"
+          },
+          "done": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.my_tasks",
+      "title": "Tasks due",
+      "description": "Open tasks, soonest first, with what is overdue. Defaults to the person signed in's; use who \"everyone\" for the team.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "who": {
+            "type": "string",
+            "description": "A name, \"me\" (default) or \"everyone\""
+          },
+          "within_days": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 365,
+            "description": "Only tasks due within this many days (overdue always included)"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.pipeline",
+      "title": "Pipeline",
+      "description": "Deals by stage with counts and totals. Give a stage to list its deals.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "stage": {
+            "type": "string",
+            "description": "Only this stage"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.recent_activity",
+      "title": "Recent activity",
+      "description": "What changed in the CRM lately and who did it: people, and the AI apps they connected (for example \"Claude (Sam's) moved Online booking to Proposal\"), newest first, plus which AI apps are connected right now. Use it to see what other agents did before you act, or when someone asks \"what changed\" or \"what did ChatGPT do\".",
+      "input": {
+        "type": "object",
+        "properties": {
+          "since": {
+            "type": "string",
+            "description": "Only changes after this time, e.g. 2026-10-07T14:00"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "description": "At most this many (default 15)"
+          }
+        },
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/mount.test.ts"
+    },
+    {
+      "name": "crm.delete_record",
+      "title": "Delete a record",
+      "description": "Delete a contact, organization, deal or activity. Only when the person clearly asks. Links to it are cleared; activities stay on the other records.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The record id"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string"
+          }
+        }
+      },
+      "scope": "delete",
+      "confirm": "human",
+      "test": "test/unit/mount.test.ts"
+    }
+  ]
+}

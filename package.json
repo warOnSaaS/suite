@@ -20,7 +20,8 @@
     "check:clean": "node scripts/check-clean.mjs",
     "check": "npm run typecheck && npm test && npm run lint:doors && npm run check:clean",
     "sync-kit": "node scripts/sync-kit.mjs",
-    "shots": "node scripts/shots.mjs"
+    "shots": "node scripts/shots.mjs",
+    "gen:mounts": "node --disable-warning=ExperimentalWarning scripts/gen-mounts.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.131.0",
