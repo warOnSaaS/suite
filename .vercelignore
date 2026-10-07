@@ -1,0 +1,8 @@
+node_modules
+.data
+.shots
+dist
+vendor/*/node_modules
+*.names
+.env
+parity-report.json

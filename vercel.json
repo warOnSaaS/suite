@@ -1,0 +1,17 @@
+{
+  "buildCommand": "node scripts/build.mjs",
+  "outputDirectory": "dist/shell",
+  "functions": {
+    "api/index.mjs": {
+      "maxDuration": 60,
+      "includeFiles": "{dist/server/**,dist/shell/**,apps-builtin/**,core/migrations/**,packages/**,vendor/**,apps/shell/public/ui/**,apps/shell/public/wos-pages.css}"
+    }
+  },
+  "rewrites": [
+    { "source": "/((?!assets/|ui/|icon|manifest\\.webmanifest|sw\\.js|wos-pages\\.css).*)", "destination": "/api/index?__p=/$1" }
+  ],
+  "headers": [
+    { "source": "/(.*)", "headers": [{ "key": "X-Robots-Tag", "value": "noindex" }] },
+    { "source": "/sw.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }
+  ]
+}

@@ -97,7 +97,7 @@ function signInPage(core: Core, res: ServerResponse, next: string, note = '', in
 ${core.env.WOS_SOLO === '1' ? `<form method="post" action="/auth/solo"><input type="hidden" name="next" value="${esc(next)}"><button class="ui-btn is-lg is-block" type="submit">Continue on this computer</button></form><p class="ui-hint wos-center">One-person mode: no account, no email. Only works from this computer.</p>` : ''}
 ${core.demo ? `<a class="ui-btn is-lg is-block" href="/auth/demo?next=${carry}">Try the demo</a><p class="ui-hint wos-center">A private sandbox with example data. No account needed.</p>` : ''}
 ${gh ? `<a class="ui-btn ${core.demo ? 'is-quiet' : ''} is-lg is-block" href="/auth/github?next=${carry}">Continue with GitHub</a>` : ''}
-<form class="wos-gate-form" method="post" action="/auth/email"><label class="ui-field"><span>Or get a sign-in link by email</span><input class="ui-input" type="email" name="email" required autocomplete="email" placeholder="you@example.com"></label><input type="hidden" name="next" value="${esc(next)}"><input type="hidden" name="invite" value="${esc(invite)}"><button class="ui-btn is-quiet is-block" type="submit">Email me a link</button></form>
+${core.demo && !core.mail.configured ? '' : `<form class="wos-gate-form" method="post" action="/auth/email"><label class="ui-field"><span>Or get a sign-in link by email</span><input class="ui-input" type="email" name="email" required autocomplete="email" placeholder="you@example.com"></label><input type="hidden" name="next" value="${esc(next)}"><input type="hidden" name="invite" value="${esc(invite)}"><button class="ui-btn is-quiet is-block" type="submit">Email me a link</button></form>`}
 <p class="ui-hint wos-center">Host it yourself, free, or host with us. Same app either way.</p>`);
 }
 
@@ -107,7 +107,7 @@ export async function handleAuth(core: Core, req: IncomingMessage, res: ServerRe
   const host = core.publicUrl;
   const q = Object.fromEntries(url.searchParams);
 
-  if (p === '/auth/sign-in') { signInPage(core, res, safeNext(q.next), '', q.invite ?? ''); return true; }
+  if (p === '/auth/sign-in') { signInPage(core, res, safeNext(q.next), q.reset ? 'The demo server restarted, so your sandbox was reset. Start a fresh one.' : '', q.invite ?? ''); return true; }
 
   if (p === '/auth/sign-out') {
     const raw = cookieOf(req);
