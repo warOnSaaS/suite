@@ -1,0 +1,767 @@
+{
+  "$schema": "https://raw.githubusercontent.com/warOnSaaS/suite/main/packages/tools/tools.schema.json",
+  "app": "agents",
+  "version": 1,
+  "tools": [
+    {
+      "name": "agents.list",
+      "title": "List agents",
+      "description": "Your team saved agents, each with its latest run: status colour, progress percent from its plan, current step and spend.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "include_archived": {
+            "type": "boolean"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object"
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/agents.test.ts"
+    },
+    {
+      "name": "agents.get",
+      "title": "Show agent",
+      "description": "One saved agent: its model, role, tools, scopes and budget.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "description": "The agent"
+          }
+        },
+        "required": [
+          "agent_id"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object"
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/agents.test.ts"
+    },
+    {
+      "name": "agents.create",
+      "title": "New agent",
+      "description": "Save an agent: a name, a role in plain words, the model it runs on, which tools it may use, what it may do (scopes) and a budget. It runs on the server when started.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "A short name, for example Researcher",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "role": {
+            "type": "string",
+            "description": "What this agent is for and how it should work, in plain words",
+            "minLength": 1,
+            "maxLength": 8000
+          },
+          "provider_id": {
+            "type": "string",
+            "description": "Model provider from models.list_providers; leave out for your default"
+          },
+          "model": {
+            "type": "string",
+            "description": "Model id; leave out for the provider default"
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Tools it may use: names like crm.find or patterns like crm.*. Leave out for every tool of the apps that are on."
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "read",
+                "write",
+                "delete",
+                "admin"
+              ]
+            },
+            "description": "What it may do; never more than the person who starts it. Default read and write."
+          },
+          "budget": {
+            "type": "object",
+            "description": "Hard limits; the run stops as failed when one is reached",
+            "properties": {
+              "max_turns": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 500
+              },
+              "max_tokens": {
+                "type": "integer",
+                "minimum": 1000,
+                "maximum": 20000000
+              },
+              "max_minutes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1440
+              }
+            }
+          }
+        },
+        "required": [
+          "name",
+          "role"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object"
+      },
+      "scope": "write",
+      "confirm": "none",
+      "emits": [
+        "agents.agent.saved"
+      ],
+      "test": "test/unit/agents.test.ts"
+    },
+    {
+      "name": "agents.update",
+      "title": "Edit agent",
+      "description": "Change a saved agent. Runs already going keep the settings they started with.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "description": "The agent"
+          },
+          "name": {
+            "type": "string",
+            "description": "A short name, for example Researcher",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "role": {
+            "type": "string",
+            "description": "What this agent is for and how it should work, in plain words",
+            "minLength": 1,
+            "maxLength": 8000
+          },
+          "provider_id": {
+            "type": "string",
+            "description": "Model provider from models.list_providers; leave out for your default"
+          },
+          "model": {
+            "type": "string",
+            "description": "Model id; leave out for the provider default"
+          },
+          "tools": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Tools it may use: names like crm.find or patterns like crm.*. Leave out for every tool of the apps that are on."
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "read",
+                "write",
+                "delete",
+                "admin"
+              ]
+            },
+            "description": "What it may do; never more than the person who starts it. Default read and write."
+          },
+          "budget": {
+            "type": "object",
+            "description": "Hard limits; the run stops as failed when one is reached",
+            "properties": {
+              "max_turns": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 500
+              },
+              "max_tokens": {
+                "type": "integer",
+                "minimum": 1000,
+                "maximum": 20000000
+              },
+              "max_minutes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1440
+              }
+            }
+          }
+        },
+        "required": [
+          "agent_id"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object"
+      },
+      "scope": "write",
+      "confirm": "none",
+      "emits": [
+        "agents.agent.saved"
+      ],
+      "test": "test/unit/agents.test.ts"
+    },
+    {
+      "name": "agents.archive",
+      "title": "Archive agent",
+      "description": "Put a saved agent away. Its past runs stay readable.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "description": "The agent"
+          }
+        },
+        "required": [
+          "agent_id"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object"
+      },
+      "scope": "delete",
+      "confirm": "none",
+      "test": "test/unit/agents.test.ts"
+    },
+    {
+      "name": "agents.start",
+      "title": "Start agent",
+      "description": "Give an agent a goal and start it. It makes a plan (a checklist), works through it with its tools, asks you when it needs you, and finishes. Returns the run.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "agent_id": {
+            "type": "string",
+            "description": "The agent"
+          },
+          "goal": {
+            "type": "string",
+            "description": "What to get done, in plain words",
+            "minLength": 3,
+            "maxLength": 4000
+          },
+          "task_ref": {
+            "type": "string",
+            "description": "Optional board task or record this run is for"
+          }
+        },
+        "required": [
+          "agent_id",
+          "goal"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object"
+      },
+      "scope": "write",
+      "confirm": "none",
+      "emits": [
+        "agents.run.updated"
+      ],
+      "test": "test/unit/agents.test.ts"
+    },
+    {
+      "name": "agents.stop",
+      "title": "Stop",
+      "description": "Stop a run now. It keeps what it did; you can retry it later.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "description": "The run. An agent working on its own run can leave this out."
+          }
+        },
+        "required": [
+          "run_id"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object"
+      },
+      "scope": "write",
+      "confirm": "none",
+      "emits": [
+        "agents.run.updated"
+      ],
+      "test": "test/unit/agents.test.ts"
+    },
+    {
+      "name": "agents.pause",
+      "title": "Pause",
+      "description": "Pause a run after its current step. Resume carries on where it stopped.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "description": "The run. An agent working on its own run can leave this out."
+          }
+        },
+        "required": [
+          "run_id"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object"
+      },
+      "scope": "write",
+      "confirm": "none",
+      "emits": [
+        "agents.run.updated"
+      ],
+      "test": "test/unit/agents.test.ts"
+    },
+    {
+      "name": "agents.resume",
+      "title": "Resume",
+      "description": "Carry on a paused run.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "description": "The run. An agent working on its own run can leave this out."
+          }
+        },
+        "required": [
+          "run_id"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object"
+      },
+      "scope": "write",
+      "confirm": "none",
+      "emits": [
+        "agents.run.updated"
+      ],
+      "test": "test/unit/agents.test.ts"
+    },
+    {
+      "name": "agents.retry",
+      "title": "Retry",
+      "description": "Start a stopped, blocked or failed run again from where it was, optionally with more budget.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "description": "The run. An agent working on its own run can leave this out."
+          },
+          "budget": {
+            "type": "object",
+            "description": "Hard limits; the run stops as failed when one is reached",
+            "properties": {
+              "max_turns": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 500
+              },
+              "max_tokens": {
+                "type": "integer",
+                "minimum": 1000,
+                "maximum": 20000000
+              },
+              "max_minutes": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1440
+              }
+            }
+          }
+        },
+        "required": [
+          "run_id"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object"
+      },
+      "scope": "write",
+      "confirm": "none",
+      "emits": [
+        "agents.run.updated"
+      ],
+      "test": "test/unit/agents.test.ts"
+    },
+    {
+      "name": "agents.message",
+      "title": "Message agent",
+      "description": "Tell a running agent something: extra detail, a correction, or an answer it did not ask for. It reads it on its next step.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "description": "The run. An agent working on its own run can leave this out."
+          },
+          "text": {
+            "type": "string",
+            "description": "What to tell it",
+            "minLength": 1,
+            "maxLength": 8000
+          }
+        },
+        "required": [
+          "run_id",
+          "text"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object"
+      },
+      "scope": "write",
+      "confirm": "none",
+      "emits": [
+        "agents.run.updated"
+      ],
+      "test": "test/unit/agents.test.ts"
+    },
+    {
+      "name": "agents.set_plan",
+      "title": "Set plan",
+      "description": "Publish the plan for a run as a checklist of steps. Progress percent is completed steps divided by all steps, so make every step something you can show evidence for. Calling it again replaces the plan and the screens say the plan changed.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "description": "The run. An agent working on its own run can leave this out."
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 200
+            },
+            "minItems": 1,
+            "maxItems": 30
+          }
+        },
+        "required": [
+          "steps"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object"
+      },
+      "scope": "write",
+      "confirm": "none",
+      "emits": [
+        "agents.run.updated"
+      ],
+      "test": "test/unit/agents.test.ts"
+    },
+    {
+      "name": "agents.complete_step",
+      "title": "Complete step",
+      "description": "Mark one plan step done, with evidence: a link, a record id, a file, a commit or a short quote of the result. A step without evidence is not done.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "description": "The run. An agent working on its own run can leave this out."
+          },
+          "n": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Step number, from 1"
+          },
+          "evidence": {
+            "type": "string",
+            "description": "What shows it is done",
+            "minLength": 3,
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "n",
+          "evidence"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object"
+      },
+      "scope": "write",
+      "confirm": "none",
+      "emits": [
+        "agents.run.updated"
+      ],
+      "test": "test/unit/agents.test.ts"
+    },
+    {
+      "name": "agents.ask",
+      "title": "Ask the person",
+      "description": "Ask the person a question and wait. It goes to their inbox (and phone or email by their settings). Give up to three short options; they can also write their own answer. The answer comes back as the result.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "description": "The run. An agent working on its own run can leave this out."
+          },
+          "question": {
+            "type": "string",
+            "description": "The question, short and plain",
+            "minLength": 3,
+            "maxLength": 600
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "maxItems": 3
+          },
+          "detail": {
+            "type": "string",
+            "description": "Optional context they may need",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object"
+      },
+      "scope": "write",
+      "confirm": "none",
+      "emits": [
+        "agents.run.updated"
+      ],
+      "test": "test/unit/agents.test.ts"
+    },
+    {
+      "name": "agents.report",
+      "title": "Report status",
+      "description": "For agents running outside wOS (Claude Code, Codex, a script): show up in the Agents grid and report status, plan and finished steps. Leave out run_id the first time and give a name and goal; use the run_id returned after that.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "description": "From your first report"
+          },
+          "name": {
+            "type": "string",
+            "description": "Your name in the grid",
+            "maxLength": 40
+          },
+          "goal": {
+            "type": "string",
+            "description": "What you are working on",
+            "maxLength": 2000
+          },
+          "status": {
+            "enum": [
+              "working",
+              "needs_you",
+              "blocked",
+              "failed",
+              "done",
+              "idle"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "description": "One line: what is happening now",
+            "maxLength": 300
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 30,
+            "description": "Your plan, if it changed"
+          },
+          "done_step": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "evidence": {
+            "type": "string",
+            "description": "Evidence for done_step",
+            "maxLength": 1000
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object"
+      },
+      "scope": "write",
+      "confirm": "none",
+      "emits": [
+        "agents.run.updated"
+      ],
+      "test": "test/unit/agents.test.ts"
+    },
+    {
+      "name": "agents.runs",
+      "title": "List runs",
+      "description": "Runs on this team, newest first, with status, progress percent (only when there is a plan), current step and spend. Filter by status or agent.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "enum": [
+              "working",
+              "needs_you",
+              "blocked",
+              "failed",
+              "done",
+              "idle",
+              "active",
+              "all"
+            ],
+            "default": "all"
+          },
+          "agent_id": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "default": 50
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object"
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/agents.test.ts"
+    },
+    {
+      "name": "agents.get_run",
+      "title": "Open run",
+      "description": "One run in full: the plan with evidence per step, what it said and which tools it used, and its spend against the budget.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "description": "The run. An agent working on its own run can leave this out."
+          },
+          "events": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 500,
+            "default": 150
+          }
+        },
+        "required": [
+          "run_id"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object"
+      },
+      "scope": "read",
+      "confirm": "none",
+      "test": "test/unit/agents.test.ts"
+    },
+    {
+      "name": "agents.get_layout",
+      "title": "Panel layout",
+      "description": "Your saved Agents panel layout: how many panels (1, 2, 4 or 6) and which run is in each.",
+      "input": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object"
+      },
+      "scope": "read",
+      "confirm": "none",
+      "hidden": true,
+      "test": "test/unit/agents.test.ts"
+    },
+    {
+      "name": "agents.save_layout",
+      "title": "Save panel layout",
+      "description": "Save how many panels show (1, 2, 4 or 6), which run sits in each, and which one is focused.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "size": {
+            "enum": [
+              1,
+              2,
+              4,
+              6
+            ]
+          },
+          "order": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 6
+          },
+          "focus": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "size"
+        ],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object"
+      },
+      "scope": "write",
+      "confirm": "none",
+      "hidden": true,
+      "test": "test/unit/agents.test.ts"
+    }
+  ]
+}

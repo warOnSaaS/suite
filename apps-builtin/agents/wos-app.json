@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/warOnSaaS/suite/main/packages/manifest/wos-app.schema.json",
+  "id": "agents",
+  "name": "Agents",
+  "description": "Saved agents that work for you on the server, watched side by side, with real progress and one inbox.",
+  "version": "0.1.0",
+  "license": "AGPL-3.0-only",
+  "requires": { "core": ">=0.1" },
+  "tools": "./tools.json",
+  "tables": "./migrations",
+  "server": "./server.ts",
+  "screens": "./screens/index.tsx",
+  "icon": "agents",
+  "nav": { "label": "Agents", "order": 2 },
+  "events": { "emits": ["agents.run.updated", "agents.run.event", "agents.agent.saved"], "listens": ["alerts.alert.answered", "alerts.approval.decided"] },
+  "needs": { "services": [], "permissions": ["notifications"], "desktop": [], "env": [] },
+  "data": { "onDisable": "keep", "exports": ["agents", "runs", "plans", "events"] },
+  "core": true
+}
