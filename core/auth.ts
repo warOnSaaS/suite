@@ -82,7 +82,7 @@ export async function bodyOf(req: IncomingMessage): Promise<Record<string, any>>
   for await (const c of req) { s += c; if (s.length > 2_000_000) throw new Error('Body too large'); }
   if (!s) return {};
   try {
-    return (req.headers['content-type'] ?? '').includes('json') ? JSON.parse(s) : Object.fromEntries(new URLSearchParams(s));
+    return (req.headers['content-type'] ?? '').includes('json') || /^\s*[{[]/.test(s) ? JSON.parse(s) : Object.fromEntries(new URLSearchParams(s));
   } catch {
     return {};
   }

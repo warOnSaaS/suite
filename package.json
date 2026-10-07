@@ -14,7 +14,7 @@
     "dev:shell": "vite --config apps/shell/vite.config.ts",
     "build": "node scripts/build.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --disable-warning=ExperimentalWarning --test 'test/unit/*.test.ts'",
+    "test": "node --disable-warning=ExperimentalWarning --test --test-timeout=60000 test/unit/*.test.ts",
     "test:parity": "node scripts/parity.mjs",
     "lint:doors": "node scripts/no-side-doors.mjs",
     "check:clean": "node scripts/check-clean.mjs",
