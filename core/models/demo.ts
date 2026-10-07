@@ -22,7 +22,11 @@ const tool = (name: string, input: any): Part => ({ type: 'tool_call', id: callI
 const say = (text: string): Part => ({ type: 'text', text });
 
 function readTool(req: ChatRequest, goal: string) {
-  if (/deal|contact|lead|crm|client|clinic|pipeline/i.test(goal) && has(req, 'crm.find')) return tool('crm.find', { q: goal.split(/\s+/).find((w) => w.length > 4 && /^[a-z]/i.test(w)) ?? '' });
+  if (/deal|contact|lead|crm|client|clinic|pipeline/i.test(goal) && has(req, 'crm.find')) {
+    const kind = /deal|pipeline/i.test(goal) ? 'deals' : /contact|lead/i.test(goal) ? 'contacts' : /clinic|client|organi[sz]ation/i.test(goal) ? 'organizations' : undefined;
+    const name = goal.match(/\b[A-Z][a-z]{2,}(?:\s[A-Z][a-z]+)?/g)?.find((w) => !/^(Show|What|Research|Find|List|Draft|The|My|Any|Is|Who|How|Can)$/.test(w));
+    return tool('crm.find', { ...(kind ? { kind } : {}), q: name ?? '', limit: 10 });
+  }
   if (/task|board|week|plan/i.test(goal) && has(req, 'board.my_day')) return tool('board.my_day', {});
   if (has(req, 'apps.list')) return tool('apps.list', {});
   return null;
