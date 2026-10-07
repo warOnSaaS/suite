@@ -1,0 +1,18 @@
+{
+  "$schema": "https://raw.githubusercontent.com/warOnSaaS/suite/main/packages/manifest/wos-app.schema.json",
+  "id": "chat",
+  "name": "Chat",
+  "description": "Channels, direct messages and threads for the team and its agents.",
+  "version": "0.1.0",
+  "license": "AGPL-3.0-only",
+  "requires": { "core": ">=0.1" },
+  "tools": "./tools.json",
+  "tables": "./migrations",
+  "server": "./server.mjs",
+  "screens": "./screens.mjs",
+  "icon": "chat",
+  "nav": { "label": "Chat", "order": 30 },
+  "events": { "emits": ["chat.message.posted"], "listens": ["meet.notes.written"] },
+  "needs": { "services": [], "permissions": ["notifications"], "desktop": [], "env": [] },
+  "data": { "onDisable": "keep", "exports": ["channels", "messages", "files"] }
+}

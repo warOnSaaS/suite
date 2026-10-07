@@ -1,0 +1,46 @@
+{
+  "$schema": "https://raw.githubusercontent.com/warOnSaaS/suite/main/packages/tools/tools.schema.json",
+  "app": "chat",
+  "version": 1,
+  "tools": [
+    {
+      "name": "chat.post_message",
+      "title": "Post a message",
+      "description": "Post a message in a channel, or reply in a thread when thread_id is given. Mentions like @Sam notify that person. Returns the new message.",
+      "input": {
+        "type": "object",
+        "properties": {
+          "channel_id": { "type": "string", "description": "The channel, for example ch_general" },
+          "text": { "type": "string", "description": "Markdown text" },
+          "thread_id": { "type": "string", "description": "Reply in this thread" }
+        },
+        "required": ["channel_id", "text"],
+        "additionalProperties": false
+      },
+      "output": {
+        "type": "object",
+        "properties": { "id": { "type": "string" }, "created_at": { "type": "string" } }
+      },
+      "scope": "write",
+      "confirm": "none",
+      "emits": ["chat.message.posted"],
+      "test": "test/tools.test.mjs"
+    },
+    {
+      "name": "chat.delete_channel",
+      "title": "Delete channel",
+      "description": "Delete a channel and every message in it, for everyone. Exports the channel first. Use only when someone clearly asked for it.",
+      "input": {
+        "type": "object",
+        "properties": { "channel_id": { "type": "string" } },
+        "required": ["channel_id"],
+        "additionalProperties": false
+      },
+      "output": { "type": "object", "properties": { "deleted": { "type": "boolean" }, "export_url": { "type": "string" } } },
+      "scope": "delete",
+      "confirm": "human",
+      "emits": ["chat.channel.deleted"],
+      "test": "test/tools.test.mjs"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "@wos/tools",
+  "version": "1.0.0",
+  "description": "The wOS tool catalogue format (tools.json): schema, checker, and MCP and OpenAPI shapes.",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "main": "index.mjs",
+  "types": "index.d.ts",
+  "exports": {
+    ".": { "types": "./index.d.ts", "default": "./index.mjs" },
+    "./tools.schema.json": "./tools.schema.json"
+  },
+  "bin": { "wos-check-tools": "bin/check.mjs" },
+  "files": ["index.mjs", "index.d.ts", "tools.schema.json", "bin", "README.md", "example.tools.json"]
+}

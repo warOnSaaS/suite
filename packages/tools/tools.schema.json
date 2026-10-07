@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/warOnSaaS/suite/main/packages/tools/tools.schema.json",
+  "title": "wOS tool catalogue (tools.json)",
+  "description": "Every action a person can take in a wOS app, written once. The suite serves each tool over MCP (/mcp), over REST (POST /api/tools/<name>) and to its own screens, all from the same handler. See packages/tools/README.md.",
+  "type": "object",
+  "required": ["app", "tools"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "app": {
+      "description": "The app id from wos-app.json. Every tool name starts with it.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{1,30}$"
+    },
+    "version": { "description": "Catalogue format version. Use 1.", "const": 1 },
+    "tools": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/tool" }
+    }
+  },
+  "$defs": {
+    "tool": {
+      "type": "object",
+      "required": ["name", "title", "description", "input", "output", "scope", "confirm"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "app.verb_noun in lower snake case after the dot, for example chat.post_message or crm.move_deal. A plain verb is fine when the noun is the app itself (agents.start).",
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9-]{1,30}\\.[a-z][a-z0-9_]{1,62}$"
+        },
+        "title": { "description": "Short sentence-case label, as a button would say it.", "type": "string", "minLength": 2, "maxLength": 60 },
+        "description": { "description": "Plain words for a person and a model: what it does, when to use it, what comes back.", "type": "string", "minLength": 20, "maxLength": 1200 },
+        "input": { "$ref": "#/$defs/objectSchema" },
+        "output": { "description": "JSON Schema of the result. Use {\"type\":\"object\"} with properties; keep results small.", "type": "object" },
+        "scope": {
+          "description": "What permission a caller needs. read: looks only. write: creates or changes. delete: removes. admin: team, billing, apps or hosting.",
+          "enum": ["read", "write", "delete", "admin"]
+        },
+        "confirm": {
+          "description": "human: when an agent calls it, a person must say yes first (an approval lands in their inbox). A person clicking the button in a screen is the yes.",
+          "enum": ["none", "human"]
+        },
+        "emits": {
+          "description": "Event names this tool may publish, app.noun.past_verb, for example chat.message.posted.",
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*\\.[a-z0-9_.]+$" }
+        },
+        "test": { "description": "Path, relative to the app root, of the test that exercises this tool. The suite's catalogue test fails when it is missing.", "type": "string" },
+        "public": { "description": "Callable without sign-in (rare: sign-in links, health). Default false.", "type": "boolean" },
+        "hidden": { "description": "Not offered to models by default (still callable). For tools that only make sense from a screen, such as saving a panel layout.", "type": "boolean" }
+      }
+    },
+    "objectSchema": {
+      "description": "JSON Schema of the input. Always an object, so MCP clients and OpenAPI accept it.",
+      "type": "object",
+      "required": ["type"],
+      "properties": { "type": { "const": "object" } }
+    }
+  }
+}

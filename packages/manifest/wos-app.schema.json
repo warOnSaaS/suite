@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/warOnSaaS/suite/main/packages/manifest/wos-app.schema.json",
+  "title": "wOS app manifest (wos-app.json)",
+  "description": "What a wOS app is and what turning it on installs: its tools, tables, server part and screens. See packages/manifest/README.md.",
+  "type": "object",
+  "required": ["id", "name", "version", "description", "requires", "tools"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "id": {
+      "description": "Lower-case id. It is also the tool and event namespace (chat.post_message, chat.message.posted) and the table prefix (chat_messages).",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{1,30}$"
+    },
+    "name": { "description": "What people see in the left rail, sentence case.", "type": "string", "minLength": 2, "maxLength": 30 },
+    "description": { "description": "One plain sentence: what the app does.", "type": "string", "minLength": 10, "maxLength": 200 },
+    "version": { "description": "Semantic version of the app package.", "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?$" },
+    "license": { "description": "SPDX id. The suite is AGPL-3.0-only; apps should be AGPL- or Apache-compatible.", "type": "string" },
+    "requires": {
+      "type": "object",
+      "required": ["core"],
+      "additionalProperties": false,
+      "properties": {
+        "core": { "description": "Semver range of the suite core, for example >=0.1.", "type": "string" },
+        "apps": { "description": "Other apps this one needs ON (rare: prefer events and tools that degrade when absent). Map of app id to semver range.", "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+    "tools": { "description": "Path to tools.json (packages/tools format).", "type": "string" },
+    "tables": { "description": "Path to the migrations folder: NNNN_name.sql files, applied in order when the app is turned on and on every start. See README.", "type": "string" },
+    "server": { "description": "Path to the server part: an ES module whose default export is register(ctx) returning { handlers, routes?, start?, stop? }.", "type": "string" },
+    "screens": { "description": "Path to the screen part: an ES module whose default export is { mount(el, ctx) }. Downloaded by the browser only when the app is on.", "type": "string" },
+    "icon": { "description": "Icon name from the kit's icon set, or a path to a 24x24 SVG.", "type": "string" },
+    "nav": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "label": { "type": "string" },
+        "order": { "description": "Position in the left rail, low first. Core apps use 0 to 19.", "type": "integer" },
+        "hidden": { "description": "No left rail entry (an app that only adds tools).", "type": "boolean" }
+      }
+    },
+    "events": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "emits": { "type": "array", "items": { "type": "string" } },
+        "listens": { "description": "Events from other apps this app reacts to. Missing apps simply never send them.", "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "needs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "services": { "description": "Extra services a self-hoster must run, by docker compose profile name, for example livekit.", "type": "array", "items": { "type": "string" } },
+        "permissions": { "description": "Browser or OS permissions the screens ask for: notifications, camera, microphone, screen.", "type": "array", "items": { "type": "string" } },
+        "desktop": { "description": "Desktop-only capabilities: spawn, terminal, keychain, global_shortcut.", "type": "array", "items": { "type": "string" } },
+        "env": { "description": "Environment variables the server part reads. Name them in plain words in the README.", "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "data": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "onDisable": { "description": "keep: tables and files stay when the app is turned off (the default). Data is only deleted by apps.uninstall, which exports first.", "enum": ["keep"] },
+        "exports": { "description": "What the app's export contains, by plain name.", "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "core": { "description": "Part of the suite core and cannot be turned off (Agents, Settings). Apps from other repos never set this.", "type": "boolean" },
+    "mount": {
+      "description": "For apps whose existing server-rendered pages the suite shows in a frame until native screens exist (the CRM and the board today).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": { "description": "Where the suite serves the app's own pages, for example /m/crm.", "type": "string", "pattern": "^/m/[a-z][a-z0-9-]*$" },
+        "start": { "description": "First page inside the frame, relative to path.", "type": "string" }
+      }
+    }
+  }
+}

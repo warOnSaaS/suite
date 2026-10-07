@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.shots/
+.data/
+.env
+.env.*
+!.env.example
+*.names
+.names
+.vercel/
+vendor/
+test-results/
+playwright-report/
+*.sqlite
+*.sqlite-*
+*.db
