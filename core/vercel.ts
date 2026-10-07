@@ -13,5 +13,8 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     url.searchParams.delete('__p');
     req.url = `${p.startsWith('/') ? p : `/${p}`}${url.search}`;
   }
-  return handle(core, req, res);
+  await handle(core, req, res);
+  // Finish work the request started in event handlers (an inbox answer resuming an agent) before the host
+  // freezes this copy; the response has already gone out, so the person does not wait for it.
+  await core.events.idle();
 }

@@ -33,6 +33,14 @@ export class Events {
   }
 
   /** `to` limits live delivery to one person (their conversation stream, their alerts). */
+  /** Event handlers still running. Serverless hosts freeze a function once its response is sent, so the
+   *  request waits for these first (see idle()); otherwise an answer could resume an agent only half way. */
+  private inflight = new Set<Promise<void>>();
+  async idle(maxMs = 20000) {
+    const until = Date.now() + maxMs;
+    while (this.inflight.size && Date.now() < until) await Promise.race([Promise.allSettled([...this.inflight]), new Promise((r) => setTimeout(r, Math.max(0, until - Date.now())))]);
+  }
+
   publish(teamId: string, name: string, data: unknown = {}, actor?: Actor, to?: string) {
     const e: WosEvent = { id: id('ev'), team_id: teamId, name, data, actor: actor ? { kind: actor.kind, id: actor.id, name: actor.name } : undefined, at: now(), to };
     // Streaming deltas are live only; everything else is stored.
@@ -47,7 +55,10 @@ export class Events {
   private deliver(e: WosEvent) {
     for (const [pattern, fns] of this.subs) {
       if (pattern === e.name || (pattern.endsWith('.*') && e.name.startsWith(pattern.slice(0, -1))) || pattern === '*') {
-        for (const fn of fns) Promise.resolve().then(() => fn(e)).catch((err) => this.log(`event handler ${pattern}: ${err.message}`));
+        for (const fn of fns) {
+          const job: Promise<void> = Promise.resolve().then(() => fn(e)).catch((err) => this.log(`event handler ${pattern}: ${err.message}`)).finally(() => this.inflight.delete(job));
+          this.inflight.add(job);
+        }
       }
     }
     for (const fn of this.teamSubs.get(e.team_id) ?? []) { try { fn(e); } catch {} }
