@@ -8,6 +8,7 @@ import type { Core } from './core.ts';
 import { ROLE_SCOPES, type Caller } from './types.ts';
 import { now, id } from './util.ts';
 import { sign, verify } from './crypto.ts';
+import { sha256 } from './util.ts';
 
 const PEOPLE = ['Sam', 'Jordan', 'Casey', 'Riley'];
 const restoring = new Map<string, Promise<void>>();
@@ -35,8 +36,22 @@ async function build(core: Core, p: { u: string; t: string; n: string; e: string
   const researcher = await call('agents.create', { name: 'Researcher', role: 'Finds and checks facts about clinics and contacts, then writes short summaries with sources.', provider_id: 'demo', budget: { max_turns: 20 } });
   const writer = await call('agents.create', { name: 'Follow-up writer', role: 'Drafts friendly follow-up emails for open deals. Never sends without approval.', provider_id: 'demo', budget: { max_turns: 20 } });
   await call('agents.create', { name: 'Board keeper', role: 'Keeps the board tidy: closes finished tasks and nudges overdue ones.', provider_id: 'demo', budget: { max_turns: 20 } });
-  if (researcher) await call('agents.start', { agent_id: researcher.id, goal: 'Research the three biggest open deals in the CRM and list next steps' });
-  if (writer) await call('agents.start', { agent_id: writer.id, goal: 'Draft a follow-up email for Birch Law about the proposal' });
+  const r1 = researcher && (await call('agents.start', { agent_id: researcher.id, goal: 'Research the three biggest open deals in the CRM and list next steps' }));
+  const r2 = writer && (await call('agents.start', { agent_id: writer.id, goal: 'Draft a follow-up email for Birch Law about the proposal' }));
+  // Same ids on every server copy, so screens that reach two copies see one set of agents and runs.
+  const fixed = (kind: string, n: string) => `${kind}_${sha256(`${p.u}:${n}`).replace(/[^a-z0-9]/gi, '').slice(0, 10).toLowerCase()}`;
+  const agents = await core.db.query<any>('SELECT id, name FROM agents WHERE team_id = ?', [team.id]);
+  for (const a of agents) {
+    const to = fixed('ag', a.name);
+    await core.db.run('UPDATE agents SET id = ? WHERE id = ?', [to, a.id]);
+    await core.db.run('UPDATE agent_runs SET agent_id = ? WHERE agent_id = ?', [to, a.id]);
+  }
+  for (const [r, n] of [[r1, 'r1'], [r2, 'r2']] as const) {
+    if (!r) continue;
+    const to = fixed('run', n);
+    for (const t of ['agent_steps', 'agent_events']) await core.db.run(`UPDATE ${t} SET run_id = ? WHERE run_id = ?`, [to, r.id]);
+    await core.db.run('UPDATE agent_runs SET id = ? WHERE id = ?', [to, r.id]);
+  }
 }
 
 /** The caller behind a demo pass, rebuilding the sandbox on this copy of the server if it is not here. */
