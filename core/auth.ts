@@ -162,7 +162,11 @@ export async function handleAuth(core: Core, req: IncomingMessage, res: ServerRe
 
   // Look freely: a first visit to a hosted demo server, sent here by the shell, opens the demo instead of a wall.
   if (p === '/auth/sign-in' && q.auto && acct && core.demo && !cookieOf(req)) {
-    res.writeHead(302, { location: `/auth/demo?next=${encodeURIComponent(safeNext(q.next))}`, 'cache-control': 'no-store' }).end();
+    // Making a sandbox takes a few seconds, so say what is happening while it loads.
+    const demo = `/auth/demo?next=${encodeURIComponent(safeNext(q.next))}`;
+    page(res, 200, 'Opening the demo', `<h1>Opening the demo</h1><p class="wos-gate-sub">A sandbox with example data, ready in a few seconds. Look around as much as you like; no account needed.</p>
+<a class="ui-btn is-quiet is-block" href="/auth/sign-in?next=${encodeURIComponent(safeNext(q.next))}" data-tool="none" data-why="Shows the sign-in choices">Sign in instead</a>
+<script>setTimeout(function(){location.replace(${JSON.stringify(demo)})},60)</script><noscript><a href="${esc(demo)}">Open the demo</a></noscript>`);
     return true;
   }
   if (p === '/auth/sign-in') { signInPage(core, res, safeNext(q.next), q.reset ? 'The demo server restarted, so your sandbox was reset. Start a fresh one.' : q.failed ? 'That sign-in did not go through. Try again.' : '', q.invite ?? ''); return true; }

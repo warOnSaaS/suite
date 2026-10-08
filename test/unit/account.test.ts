@@ -90,7 +90,7 @@ test('the shell sending a first-time visitor to sign in opens the demo instead',
   const core = await makeCore({ AUTH_PROVIDER: 'waronsaas', WOS_ACCOUNT_CLIENT_ID: 'suite', WOS_ACCOUNT_CLIENT_SECRET: 'shh', WOS_ACCOUNT_URL: fake.url, WOS_DEMO: '1' });
   const { url } = await serveCore(core);
   let r = await fetch(`${url}/auth/sign-in?auto=1&next=/`, { redirect: 'manual' });
-  assert.match(r.headers.get('location')!, /^\/auth\/demo\?next=/);
+  assert.match(await r.text(), /Opening the demo[\s\S]*\/auth\/demo\?next=/);
   r = await fetch(`${url}/auth/sign-in?next=/`, { redirect: 'manual' });
   assert.equal(r.status, 200, 'asking for the sign-in page shows it');
   await core.stop?.();
