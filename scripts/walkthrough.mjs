@@ -18,7 +18,7 @@ const results = [];
 const note = (s) => { log.push(`${new Date().toISOString().slice(11, 19)} ${s}`); console.log(s); };
 const check = (name, ok, detail = '') => { results.push({ name, ok, detail }); note(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? `: ${detail}` : ''}`); };
 
-const browser = await chromium.launch({ args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
+const browser = await chromium.launch({ args: ['--mute-audio', '--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'] });
 const size = { width: 1280, height: 800 };
 const ctxA = await browser.newContext({ viewport: size, recordVideo: { dir: path.join(out, 'raw'), size }, permissions: ['camera', 'microphone'] });
 const page = await ctxA.newPage();

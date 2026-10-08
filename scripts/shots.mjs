@@ -6,7 +6,7 @@ import { chromium } from 'playwright';
 const base = process.argv[2] ?? 'http://localhost:8080';
 const only = process.argv[3];
 fs.mkdirSync('.shots', { recursive: true });
-const browser = await chromium.launch();
+const browser = await chromium.launch({ args: ['--mute-audio'] }); // never play sound out of the speakers
 const pages = [
   ['signin', '/auth/sign-in', false],
   ['home', '/', true],

@@ -23,7 +23,7 @@ const { core } = await serve(port);
 const base = `http://localhost:${port}`;
 const catalogue = { has: (n) => core.catalogue.tools.has(n), get size() { return core.catalogue.tools.size; }, [Symbol.iterator]: () => core.catalogue.tools.keys() };
 
-const browser = await chromium.launch();
+const browser = await chromium.launch({ args: ['--mute-audio'] }); // never play sound out of the speakers
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
 const page = await ctx.newPage();
 const requests = [];
