@@ -11,6 +11,18 @@ import { createSession, sessionFromToken } from './accounts.ts';
 import { sign, verify } from './crypto.ts';
 import { page, esc } from './page.ts';
 import { now, parse } from './util.ts';
+// @ts-ignore: plain JavaScript, copied from warOnSaaS/account
+import { WosAccount, authProvider } from './account-client.mjs';
+
+// AUTH_PROVIDER=waronsaas (the hosted copy): sign-in happens at the warOnSaaS account (GitHub, Google or an email
+// link there), and this server keeps its own session carrying the account session id. github and local: as before.
+const accounts = new Map<string, any>();
+export function accountFor(core: Core): any {
+  if (authProvider(core.env) !== 'waronsaas') return null;
+  const key = `${core.env.WOS_ACCOUNT_CLIENT_ID}|${core.publicUrl}`;
+  if (!accounts.has(key)) accounts.set(key, WosAccount.fromEnv(core.env, { redirectUri: `${core.publicUrl}/auth/waronsaas/callback`, secret: core.env.WOS_SECRET_KEY }));
+  return accounts.get(key);
+}
 
 export const COOKIE = 'wos_session';
 const GH_WEB = (core: Core) => core.env.GITHUB_WEB_BASE || 'https://github.com';
@@ -31,6 +43,8 @@ export async function callerFromRequest(core: Core, req: IncomingMessage): Promi
   if (raw.startsWith('wosd_')) return (await import('./demo.ts')).callerFromPass(core, raw);
   const s = await sessionFromToken(core, raw);
   if (!s) return null;
+  // Signed out of the warOnSaaS account everywhere: this session ends too.
+  if (s.accountSid && !(await accountFor(core)?.isLive(s.accountSid) ?? true)) return null;
   const user = await core.users.get(s.userId);
   if (!user) return null;
   // The team: the one asked for (x-wos-team), else the session's, else the person's first.
@@ -59,7 +73,7 @@ async function placeInTeam(core: Core, user: User, opts: { inviteId?: string | n
   if (!teams.length) {
     const any = await core.db.get<any>('SELECT id FROM teams LIMIT 1');
     // The first person on a new server sets it up; after that, new teams only when sign-up is open.
-    if (!any || core.env.WOS_OPEN_SIGNUP === '1') {
+    if (!any || core.env.WOS_OPEN_SIGNUP === '1' || authProvider(core.env) === 'waronsaas') {
       await core.teams.create(`${user.name.split(' ')[0]}'s team`, user.id);
       teams = await core.users.teamsOf(user.id);
     }
@@ -67,14 +81,14 @@ async function placeInTeam(core: Core, user: User, opts: { inviteId?: string | n
   return teams;
 }
 
-async function signInAndRedirect(core: Core, res: ServerResponse, user: User, next: string, opts: { inviteId?: string | null; githubOrgs?: string[] } = {}) {
+async function signInAndRedirect(core: Core, res: ServerResponse, user: User, next: string, opts: { inviteId?: string | null; githubOrgs?: string[]; accountSid?: string | null; extraCookie?: string } = {}) {
   const teams = await placeInTeam(core, user, opts);
   if (!teams.length) {
     return page(res, 403, 'Not on a team yet', `<h1>Hi ${esc(user.name)}</h1><p>You are signed in, but you are not on a team on this server yet.</p><p>Ask a team admin to invite ${esc(user.email ?? `@${user.github_login}`)}, then sign in again.</p><a class="ui-btn is-quiet is-block" href="/auth/sign-in">Back to sign in</a>`);
   }
-  const s = await createSession(core, user.id, teams[0].id, 'web');
+  const s = await createSession(core, user.id, teams[0].id, 'web', { accountSid: opts.accountSid ?? null });
   await core.db.run('UPDATE users SET last_seen_at = ? WHERE id = ?', [now(), user.id]);
-  res.writeHead(302, { location: safeNext(next), 'set-cookie': setCookie(core, s.token, s.expiresIn), 'cache-control': 'no-store' }).end();
+  res.writeHead(302, { location: safeNext(next), 'set-cookie': [setCookie(core, s.token, s.expiresIn), ...(opts.extraCookie ? [opts.extraCookie] : [])], 'cache-control': 'no-store' }).end();
 }
 
 export async function bodyOf(req: IncomingMessage): Promise<Record<string, any>> {
@@ -92,6 +106,7 @@ export async function bodyOf(req: IncomingMessage): Promise<Record<string, any>>
 const json = (res: ServerResponse, status: number, obj: unknown, headers: Record<string, string> = {}) => res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store', ...headers }).end(JSON.stringify(obj));
 
 function signInPage(core: Core, res: ServerResponse, next: string, note = '', invite = '') {
+  if (accountFor(core)) return accountSignInPage(core, res, next, note, invite);
   const gh = !!core.env.GITHUB_OAUTH_CLIENT_ID;
   const carry = `${encodeURIComponent(next)}${invite ? `&invite=${encodeURIComponent(invite)}` : ''}`;
   page(res, 200, 'Sign in', `<h1>Sign in to wOS</h1><p class="wos-gate-sub">One place for your team and its AI agents.</p>${note ? `<div class="ui-notice is-quiet">${note}</div>` : ''}
@@ -102,18 +117,55 @@ ${core.demo && !core.mail.configured ? '' : `<form class="wos-gate-form" method=
 <p class="ui-hint wos-center">Host it yourself, free, or host with us. Same app either way.</p>`);
 }
 
+// Hosted: one way in, the free warOnSaaS account. The demo stays open without one.
+function accountSignInPage(core: Core, res: ServerResponse, next: string, note = '', invite = '') {
+  const carry = `next=${encodeURIComponent(next)}${invite ? `&invite=${encodeURIComponent(invite)}` : ''}`;
+  page(res, 200, 'Sign in', `<h1>Sign in to wOS</h1><p class="wos-gate-sub">Free. We ask so we can keep it fast and fair, and so your AI can act as you.</p>${note ? `<div class="ui-notice is-quiet">${note}</div>` : ''}
+<a class="ui-btn is-accent is-lg is-block" href="/auth/waronsaas?${carry}&provider=github" data-tool="none" data-why="Starts sign-in">Continue with GitHub</a>
+<a class="ui-btn is-quiet is-lg is-block" href="/auth/waronsaas?${carry}" data-tool="none" data-why="Starts sign-in">Google or an email link</a>
+${core.demo ? `<a class="ui-btn is-ghost is-block" href="/auth/demo?next=${encodeURIComponent(next)}" data-tool="none" data-why="Opens the demo">Just look around first</a>` : ''}
+<p class="ui-hint wos-center">One warOnSaaS account works in every app. Host it yourself, free, or host with us.</p>`);
+}
+
 /** Every /auth, /oauth and /.well-known route. Returns false when the path is not one of them. */
 export async function handleAuth(core: Core, req: IncomingMessage, res: ServerResponse, url: URL): Promise<boolean> {
   const p = url.pathname;
   const host = core.publicUrl;
   const q = Object.fromEntries(url.searchParams);
 
-  if (p === '/auth/sign-in') { signInPage(core, res, safeNext(q.next), q.reset ? 'The demo server restarted, so your sandbox was reset. Start a fresh one.' : '', q.invite ?? ''); return true; }
+  // ---- warOnSaaS account ----
+  const acct = accountFor(core);
+  if (p === '/auth/waronsaas') {
+    if (!acct) { signInPage(core, res, safeNext(q.next), 'Sign-in with a warOnSaaS account is not set up on this server.'); return true; }
+    const s = acct.start({ next: safeNext(q.next), carry: q.invite ? { i: q.invite } : null, prompt: q.prompt === 'none' ? 'none' : null, provider: ['github', 'google'].includes(q.provider) ? q.provider : null, secure: secure(core) });
+    res.writeHead(302, { location: s.location, 'set-cookie': s.cookie, 'cache-control': 'no-store' }).end();
+    return true;
+  }
+  if (p === '/auth/waronsaas/callback') {
+    if (!acct) { signInPage(core, res, '/', 'Sign-in with a warOnSaaS account is not set up on this server.'); return true; }
+    const r = await acct.finish(req);
+    if (r.error) {
+      if (r.error === 'login_required' || r.error === 'access_denied') { res.writeHead(302, { location: `/auth/sign-in?next=${encodeURIComponent(safeNext(r.next))}`, 'set-cookie': r.clear }).end(); return true; }
+      res.writeHead(302, { location: `/auth/sign-in?next=${encodeURIComponent(safeNext(r.next))}&failed=1`, 'set-cookie': r.clear }).end();
+      return true;
+    }
+    const u = await core.users.fromAccount(r.profile);
+    await signInAndRedirect(core, res, u, safeNext(r.next), { inviteId: r.carry?.i ?? null, accountSid: r.profile.sid, extraCookie: r.clear });
+    return true;
+  }
+  // Hosted copies send GitHub and email sign-in through the account.
+  if (acct && (p === '/auth/github' || (p === '/auth/email' && req.method === 'POST'))) {
+    const b = p === '/auth/email' ? await bodyOf(req) : q;
+    res.writeHead(302, { location: `/auth/waronsaas?next=${encodeURIComponent(safeNext(b.next))}${b.invite ? `&invite=${encodeURIComponent(b.invite)}` : ''}${p === '/auth/github' ? '&provider=github' : ''}` }).end();
+    return true;
+  }
+
+  if (p === '/auth/sign-in') { signInPage(core, res, safeNext(q.next), q.reset ? 'The demo server restarted, so your sandbox was reset. Start a fresh one.' : q.failed ? 'That sign-in did not go through. Try again.' : '', q.invite ?? ''); return true; }
 
   if (p === '/auth/sign-out') {
     const raw = cookieOf(req);
     if (raw && req.method === 'POST') { const s = await sessionFromToken(core, raw); if (s) await core.db.run('UPDATE sessions SET revoked_at = ? WHERE id = ?', [now(), s.id]); }
-    res.writeHead(302, { location: '/auth/sign-in', 'set-cookie': setCookie(core, '', 0) }).end();
+    res.writeHead(302, { location: acct && req.method === 'POST' ? acct.endSessionUrl(`${host}/auth/sign-in`) : '/auth/sign-in', 'set-cookie': setCookie(core, '', 0) }).end();
     return true;
   }
 

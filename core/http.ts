@@ -6,7 +6,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { toOpenApi } from '../packages/tools/index.mjs';
 import type { Core } from './core.ts';
 import { ROOT } from './core.ts';
-import { callerFromRequest, handleAuth, bodyOf, json, cookieOf } from './auth.ts';
+import { callerFromRequest, handleAuth, bodyOf, json, cookieOf, accountFor } from './auth.ts';
 import { handleMcp } from './mcp.ts';
 import { verify } from './crypto.ts';
 import { page, esc } from './page.ts';
@@ -52,6 +52,8 @@ export async function handle(core: Core, req: IncomingMessage, res: ServerRespon
       if (f) return serveFile(res, f, /\/assets\//.test(p) ? 'public, max-age=31536000, immutable' : 'no-cache');
       if (/\.[a-z0-9]+$/i.test(p) && !p.startsWith('/m/')) return res.writeHead(404, { 'content-type': 'text/plain' }).end('Not found');
       const caller = await callerFromRequest(core, req);
+      // Hosted (account sign-in) demo servers: look freely. A first visit opens the demo; signing in is a choice.
+      if (!caller?.user && core.demo && !cookieOf(req) && accountFor(core)) return res.writeHead(302, { location: `/auth/demo?next=${encodeURIComponent(p + url.search)}`, 'cache-control': 'no-store' }).end();
       if (!caller?.user) return res.writeHead(302, { location: `/auth/sign-in?next=${encodeURIComponent(p + url.search)}${core.demo && cookieOf(req) ? '&reset=1' : ''}`, 'cache-control': 'no-store' }).end();
       const index = staticFile('/index.html');
       if (!index) return page(res, 503, 'Not built', '<h1>The screens are not built yet</h1><p>Run <code>npm run build</code>, then reload.</p>');

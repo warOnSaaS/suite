@@ -29,6 +29,16 @@ export class Users {
     return (await this.get(u.id))!;
   }
 
+  /** Sign-in with a warOnSaaS account: by account id, else once by verified email or GitHub login; new people are made. */
+  async fromAccount(p: { sub: string; email?: string | null; email_verified?: boolean; name?: string | null; picture?: string | null; github_login?: string | null }) {
+    let u = (await this.core.db.get<User>('SELECT * FROM users WHERE account_sub = ?', [p.sub])) ?? null;
+    if (!u && p.email && p.email_verified) u = await this.byEmail(p.email);
+    if (!u && p.github_login) u = await this.byGithub(p.github_login);
+    if (!u) u = await this.create({ name: p.name || (p.email ? p.email.split('@')[0] : 'New person'), email: p.email && p.email_verified ? p.email.toLowerCase() : null, github_login: p.github_login ? p.github_login.toLowerCase() : null, avatar_url: p.picture ?? null });
+    await this.core.db.run('UPDATE users SET account_sub = ?, last_seen_at = ?, avatar_url = COALESCE(avatar_url, ?) WHERE id = ?', [p.sub, now(), p.picture ?? null, u.id]);
+    return (await this.get(u.id))!;
+  }
+
   async fromEmail(email: string) {
     return (await this.byEmail(email)) ?? this.create({ name: email.split('@')[0].replace(/[._-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()), email });
   }
@@ -87,12 +97,12 @@ export class Teams {
 
 // ---------- sessions and personal tokens ----------
 
-export async function createSession(core: Core, userId: string, teamId: string | null, kind: 'web' | 'oauth' | 'token' | 'refresh', opts: { family?: string; clientName?: string; scopes?: Scope[]; ttl?: number } = {}) {
+export async function createSession(core: Core, userId: string, teamId: string | null, kind: 'web' | 'oauth' | 'token' | 'refresh', opts: { family?: string; clientName?: string; scopes?: Scope[]; ttl?: number; accountSid?: string | null } = {}) {
   const raw = `wos_${token(30)}`;
   const sid = id('s');
   const ttl = opts.ttl ?? (kind === 'refresh' ? 365 : kind === 'token' ? 3650 : 30) * 86400;
-  await core.db.run('INSERT INTO sessions (id, user_id, team_id, family, kind, client_name, scopes, token_hash, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
-    sid, userId, teamId, opts.family ?? sid, kind, opts.clientName ?? null, JSON.stringify(opts.scopes ?? ['read', 'write', 'delete', 'admin']), sha256(raw), now(), later(ttl),
+  await core.db.run('INSERT INTO sessions (id, user_id, team_id, family, kind, client_name, scopes, token_hash, created_at, expires_at, account_sid) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', [
+    sid, userId, teamId, opts.family ?? sid, kind, opts.clientName ?? null, JSON.stringify(opts.scopes ?? ['read', 'write', 'delete', 'admin']), sha256(raw), now(), later(ttl), opts.accountSid ?? null,
   ]);
   return { token: raw, id: sid, expiresIn: ttl };
 }
@@ -107,7 +117,7 @@ export async function sessionFromToken(core: Core, raw: string, kinds: string[] 
     return null;
   }
   if (!s.used_at || s.used_at < new Date(Date.now() - 3600e3).toISOString()) core.db.run('UPDATE sessions SET used_at = ? WHERE id = ?', [now(), s.id]).catch(() => {});
-  return { id: s.id as string, userId: s.user_id as string, teamId: s.team_id as string | null, family: s.family as string, kind: s.kind as string, scopes: parse<Scope[]>(s.scopes, []), clientName: s.client_name as string | null };
+  return { id: s.id as string, userId: s.user_id as string, teamId: s.team_id as string | null, family: s.family as string, kind: s.kind as string, scopes: parse<Scope[]>(s.scopes, []), clientName: s.client_name as string | null, accountSid: (s.account_sid ?? null) as string | null };
 }
 
 // ---------- tools ----------
