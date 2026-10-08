@@ -17,7 +17,7 @@ export async function callTool<T = any>(name: string, input: unknown = {}): Prom
     body: JSON.stringify(input ?? {}),
     credentials: 'same-origin',
   });
-  if (r.status === 401) { location.href = `/auth/sign-in?next=${encodeURIComponent(location.pathname)}`; throw new ToolError('sign_in', 'Sign in again.', 401); }
+  if (r.status === 401) { location.href = `/auth/sign-in?auto=1&next=${encodeURIComponent(location.pathname)}`; throw new ToolError('sign_in', 'Sign in again.', 401); }
   const j = await r.json().catch(() => ({}));
   if (r.status === 202) return { pending: j.pending } as T;
   if (!r.ok) throw new ToolError(j.error?.code ?? 'error', j.error?.message ?? `Something went wrong (${r.status}).`, r.status);

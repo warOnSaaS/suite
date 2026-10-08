@@ -160,6 +160,11 @@ export async function handleAuth(core: Core, req: IncomingMessage, res: ServerRe
     return true;
   }
 
+  // Look freely: a first visit to a hosted demo server, sent here by the shell, opens the demo instead of a wall.
+  if (p === '/auth/sign-in' && q.auto && acct && core.demo && !cookieOf(req)) {
+    res.writeHead(302, { location: `/auth/demo?next=${encodeURIComponent(safeNext(q.next))}`, 'cache-control': 'no-store' }).end();
+    return true;
+  }
   if (p === '/auth/sign-in') { signInPage(core, res, safeNext(q.next), q.reset ? 'The demo server restarted, so your sandbox was reset. Start a fresh one.' : q.failed ? 'That sign-in did not go through. Try again.' : '', q.invite ?? ''); return true; }
 
   if (p === '/auth/sign-out') {
