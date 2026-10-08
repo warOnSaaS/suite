@@ -14,7 +14,7 @@ const root = path.resolve(new URL('..', import.meta.url).pathname);
 const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'wos-parity-'));
 const port = 8700 + Math.floor(Math.random() * 200);
 // The real app packages when they are vendored (node scripts/vendor.mjs), otherwise the example app.
-const vendored = ['chat', 'email', 'agent-kanban', 'crm', 'meet', 'sheets'].map((d) => path.join(root, 'vendor', d)).filter((d) => fs.existsSync(path.join(d, 'wos-app.json')));
+const vendored = ['chat', 'email', 'agent-kanban', 'crm', 'meet', 'sheets', 'decks'].map((d) => path.join(root, 'vendor', d)).filter((d) => fs.existsSync(path.join(d, 'wos-app.json')));
 const parityApps = process.env.PARITY_APPS || (vendored.length ? vendored.join(',') : path.join(root, 'packages/manifest/example'));
 Object.assign(process.env, { WOS_DEMO: '1', WOS_DATA_DIR: dataDir, WOS_APPS: parityApps, PORT: String(port), PUBLIC_URL: `http://localhost:${port}`, WOS_DEMO_PACE_MS: '300', WOS_SECRET_KEY: 'parity' });
 if (!fs.existsSync(path.join(root, 'dist/shell/index.html'))) { console.error('Build the shell first: npm run build'); process.exit(2); }
@@ -111,6 +111,7 @@ const SUBSCREENS = {
   email: { lists: ['/', '/inbox/fyi', '/drafts', '/approvals', '/settings'], records: [['/', /\/t\/[^/]+$/, 'optional: a demo team has no mailbox until one is connected']] },
   crm: { lists: ['/contacts', '/leads', '/organizations', '/pipeline', '/deals', '/activities', '/import', '/settings', '/deleted', '/duplicates'], records: [['/contacts', /\/a\/crm\/contacts\/c_/], ['/organizations', /\/a\/crm\/organizations\/o_/], ['/deals', /\/a\/crm\/deals\/d_/]] },
   meet: { lists: ['/'], records: [['/', /\/a\/meet\/m\/[^/]+$/]], before: async () => { await tool('meet.create', { title: 'Parity check' }).catch(() => {}); } },
+  decks: { lists: ['/', '/connect', '/settings'], records: [['/', /\/a\/decks\/d\/[^/?]+$/]], before: async () => { await tool('decks.create_deck', { title: 'Parity deck', from_example: 'Acme Dental: investor update' }).catch(() => {}); } },
   sheets: { lists: ['/', '/connect', '/settings'], records: [['/', /\/a\/sheets\/s\/[^/]+$/]], before: async () => { await tool('sheets.create_sheet', { template: 'pipeline' }).catch(() => {}); } },
   board: { lists: ['/', '/alerts', '/settings'], records: [['/', /\/a\/board\/(.*\/)?(t|task|tasks)\/[^/]+$/], ['/', /\/a\/board\/(.*\/)?(i|idea|ideas)\/[^/]+$/]] },
 };
