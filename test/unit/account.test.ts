@@ -95,3 +95,14 @@ test('the shell sending a first-time visitor to sign in opens the demo instead',
   assert.equal(r.status, 200, 'asking for the sign-in page shows it');
   await core.stop?.();
 });
+
+test('a browser already signed in to the account signs in here silently instead of opening the demo', async () => {
+  const fake = await fakeAccount();
+  const core = await makeCore({ AUTH_PROVIDER: 'waronsaas', WOS_ACCOUNT_CLIENT_ID: 'suite', WOS_ACCOUNT_CLIENT_SECRET: 'shh', WOS_ACCOUNT_URL: fake.url, WOS_DEMO: '1' });
+  const { url } = await serveCore(core);
+  let r = await fetch(`${url}/auth/sign-in?auto=1&next=/`, { redirect: 'manual', headers: { cookie: 'wos_signed_in=1' } });
+  assert.match(r.headers.get('location')!, /^\/auth\/waronsaas\?prompt=none&next=%2F/);
+  r = await fetch(`${url}/auth/sign-in?auto=1&tried=1&next=/`, { redirect: 'manual', headers: { cookie: 'wos_signed_in=1' } });
+  assert.match(await r.text(), /Opening the demo/);
+  await core.stop?.();
+});

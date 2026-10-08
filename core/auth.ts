@@ -145,7 +145,8 @@ export async function handleAuth(core: Core, req: IncomingMessage, res: ServerRe
     if (!acct) { signInPage(core, res, '/', 'Sign-in with a warOnSaaS account is not set up on this server.'); return true; }
     const r = await acct.finish(req);
     if (r.error) {
-      if (r.error === 'login_required' || r.error === 'access_denied') { res.writeHead(302, { location: `/auth/sign-in?next=${encodeURIComponent(safeNext(r.next))}`, 'set-cookie': r.clear }).end(); return true; }
+      if (r.error === 'login_required' || r.error === 'consent_required') { res.writeHead(302, { location: `/auth/sign-in?auto=1&tried=1&next=${encodeURIComponent(safeNext(r.next))}`, 'set-cookie': r.clear }).end(); return true; }
+      if (r.error === 'access_denied') { res.writeHead(302, { location: `/auth/sign-in?next=${encodeURIComponent(safeNext(r.next))}`, 'set-cookie': r.clear }).end(); return true; }
       res.writeHead(302, { location: `/auth/sign-in?next=${encodeURIComponent(safeNext(r.next))}&failed=1`, 'set-cookie': r.clear }).end();
       return true;
     }
@@ -161,6 +162,12 @@ export async function handleAuth(core: Core, req: IncomingMessage, res: ServerRe
   }
 
   // Look freely: a first visit to a hosted demo server, sent here by the shell, opens the demo instead of a wall.
+  // Already signed in to the warOnSaaS account in this browser (the hint cookie on the parent domain): sign in
+  // here silently, once. If that does not work, carry on to the demo or the sign-in page.
+  if (p === '/auth/sign-in' && q.auto && acct && !q.tried && !cookieOf(req) && (WosAccount as any).hinted(req)) {
+    res.writeHead(302, { location: `/auth/waronsaas?prompt=none&next=${encodeURIComponent(safeNext(q.next))}`, 'cache-control': 'no-store' }).end();
+    return true;
+  }
   if (p === '/auth/sign-in' && q.auto && acct && core.demo && !cookieOf(req)) {
     // Making a sandbox takes a few seconds, so say what is happening while it loads.
     const demo = `/auth/demo?next=${encodeURIComponent(safeNext(q.next))}`;
